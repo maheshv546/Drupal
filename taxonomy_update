@@ -1,0 +1,40 @@
+function mymodule_fullcalendar_classes($entity) {
+  $classes = [];
+
+  // Ensure the entity is a node and of the correct content type (e.g., 'event').
+  if ($entity instanceof \Drupal\node\NodeInterface && $entity->bundle() == 'event') {
+
+    // Replace 'event_category' with your actual vocabulary machine name.
+    $vocabulary_id = 'event_category'; 
+
+    // Load all taxonomy terms for the vocabulary in default order.
+    $terms = \Drupal::entityTypeManager()
+      ->getStorage('taxonomy_term')
+      ->loadTree($vocabulary_id, 0, NULL, TRUE);
+
+    // Create an indexed array of terms based on order.
+    $predefined_order = [];
+    foreach ($terms as $index => $term) {
+      $term_name = strtolower(str_replace(' ', '-', $term->getName())); // Sanitize for class use.
+      $predefined_order[$term->id()] = $index; // Store index based on order.
+    }
+
+    // Process the entity's assigned taxonomy terms
+if ($entity->hasField('field_event_category') && !$entity->get('field_event_category')->isEmpty()) {
+      $event_terms = $entity->get('field_event_category')->referencedEntities();
+
+      foreach ($event_terms as $term) {
+        $tid = $term->id();
+        $term_name = strtolower(str_replace(' ', '-', $term->getName())); 
+
+        // Check if term exists in the predefined order.
+        if (isset($predefined_order[$tid])) {
+          $index = $predefined_order[$tid];
+          $classes[] = 'taxonomy-term-' . $index . '-' . $term_name;
+        }
+      }
+    }
+  }
+
+  return $classes;
+}
