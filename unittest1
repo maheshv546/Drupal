@@ -1,21 +1,78 @@
-public function testFullcalendarClasses() {
-    $entity = $this->createMock(EntityInterface::class);
-    
-    // Mocking a taxonomy term field value
-    $terms = [
-        (object) ['tid' => 1, 'name' => 'Event'],
-        (object) ['tid' => 2, 'name' => 'Meeting'],
+namespace Drupal\Tests\mymodule\Unit;
+
+use Drupal\Core\Entity\EntityTypeManagerInterface;
+use Drupal\Core\Entity\EntityStorageInterface;
+use Drupal\node\NodeInterface;
+use Drupal\taxonomy\TermInterface;
+use Drupal\Tests\UnitTestCase;
+
+/**
+ * Tests hook_fullcalendar_classes().
+ *
+ * @group mymodule
+ */
+class FullCalendarClassesTest extends UnitTestCase {
+
+  protected EntityTypeManagerInterface $entityTypeManager;
+  protected EntityStorageInterface $termStorage;
+
+  protected function setUp(): void {
+    parent::setUp();
+
+    // Mock EntityTypeManager and Taxonomy Term Storage.
+    $this->termStorage = $this->createMock(EntityStorageInterface::class);
+    $this->entityTypeManager = $this->createMock(EntityTypeManagerInterface::class);
+
+    // Configure getStorage() to return termStorage mock.
+    $this->entityTypeManager->method('getStorage')
+      ->with('taxonomy_term')
+      ->willReturn($this->termStorage);
+
+    \Drupal::setContainer(new \Drupal\Core\DependencyInjection\ContainerBuilder());
+    \Drupal::getContainer()->set('entity_type.manager', $this->entityTypeManager);
+  }
+
+  /**
+   * Tests whether hook_fullcalendar_classes() correctly returns CSS classes.
+   */
+  public function testFullCalendarClasses(): void {
+    // Create taxonomy term mocks with IDs.
+    $term1 = $this->createMock(TermInterface::class);
+    $term1->method('id')->willReturn(5);
+    $term1->method('getName')->willReturn('Conference');
+
+    $term2 = $this->createMock(TermInterface::class);
+    $term2->method('id')->willReturn(7);
+    $term2->method('getName')->willReturn('Workshop');
+
+    $term3 = $this->createMock(TermInterface::class);
+    $term3->method('id')->willReturn(12);
+    $term3->method('getName')->willReturn('Webinar');
+
+    // Simulate the order of terms in the vocabulary.
+    $this->termStorage->method('loadByProperties')
+      ->willReturn([$term1, $term2, $term3]);
+
+    // Create an event node mock with assigned terms.
+    $event = $this->createMock(NodeInterface::class);
+    $event->method('bundle')->willReturn('event');
+    $event->method('hasField')->with('field_event_category')->willReturn(true);
+    $event->method('get')->with('field_event_category')
+      ->willReturn(new class([$term2, $term3]) {
+        private array $terms;
+        public function __construct(array $terms) { $this->terms = $terms; }
+        public function isEmpty(): bool { return empty($this->terms); }
+        public function referencedEntities(): array { return $this->terms; }
+      });
+
+    // Call the function and assert expected classes.
+    $classes = mymodule_fullcalendar_classes($event);
+
+    $expected_classes = [
+      'taxonomy-term-1-workshop', // Index 1 from predefined order
+      'taxonomy-term-2-webinar', // Index 2 from predefined order
     ];
-    
-    // Mock the entity method to return our terms
-    $entity->method('get')->willReturn($terms);
 
-    // Call the hook implementation
-    $classes = hook_fullcalendar_classes($entity);
-
-    // Expected classes (assuming classes are built as 'taxonomy-term-[tid]')
-    $expectedClass = 'taxonomy-term-1';
-
-    // Assert that the expected class exists in the result
-    $this->assertContains($expectedClass, $classes, "The expected class is missing.");
+    $this->assertEquals($expected_classes, $classes, 'Generated classes match expected values.');
+  }
 }
