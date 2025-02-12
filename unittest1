@@ -1,21 +1,24 @@
 namespace Drupal\Tests\mymodule\Unit;
 
-use Drupal\Tests\UnitTestCase;
-use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\Entity\EntityStorageInterface;
+use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\node\NodeInterface;
 use Drupal\taxonomy\TermInterface;
+use Drupal\Tests\UnitTestCase;
 
 /**
  * Tests hook_fullcalendar_classes().
  *
  * @group mymodule
  */
-class FullCalendarClassesTest extends UnitTestCase {
+final class FullCalendarClassesTest extends UnitTestCase {
 
-  protected $entityTypeManager;
-  protected $termStorage;
+  protected EntityTypeManagerInterface $entityTypeManager;
+  protected EntityStorageInterface $termStorage;
 
+  /**
+   * {@inheritdoc}
+   */
   protected function setUp(): void {
     parent::setUp();
 
@@ -32,7 +35,10 @@ class FullCalendarClassesTest extends UnitTestCase {
     \Drupal::getContainer()->set('entity_type.manager', $this->entityTypeManager);
   }
 
-  public function testFullCalendarClasses() {
+  /**
+   * Tests hook_fullcalendar_classes() generates correct classes.
+   */
+  public function testFullCalendarClasses(): void {
     // Create taxonomy term mocks with IDs.
     $term1 = $this->createMock(TermInterface::class);
     $term1->method('id')->willReturn(5);
@@ -56,10 +62,10 @@ class FullCalendarClassesTest extends UnitTestCase {
     $event->method('hasField')->with('field_event_category')->willReturn(true);
     $event->method('get')->with('field_event_category')
       ->willReturn(new class([$term2, $term3]) {
-        private $terms;
-        public function __construct($terms) { $this->terms = $terms; }
-        public function isEmpty() { return empty($this->terms); }
-        public function referencedEntities() { return $this->terms; }
+        private array $terms;
+        public function __construct(array $terms) { $this->terms = $terms; }
+        public function isEmpty(): bool { return empty($this->terms); }
+        public function referencedEntities(): array { return $this->terms; }
       });
 
     // Call the function and assert expected classes.
@@ -70,6 +76,6 @@ class FullCalendarClassesTest extends UnitTestCase {
       'taxonomy-term-2-webinar', // Index 2 from predefined order
     ];
 
-    $this->assertEquals($expected_classes, $classes, 'Generated classes match expected values.');
+    $this->assertSame($expected_classes, $classes, 'Generated classes match expected values.');
   }
 }
