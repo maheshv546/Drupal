@@ -1,47 +1,48 @@
-<?php
-
-use Drupal\Tests\UnitTestCase;
-use Drupal\Core\Entity\EntityInterface;
-
 /**
- * Tests the hook_fullcalendar_classes() function.
+ * Implements hook_fullcalendar_classes().
  *
- * @group mymodule
+ * Generates custom class names for FullCalendar based on taxonomy term order.
+ *
+ * @param \Drupal\node\NodeInterface $entity
+ *   The event node entity.
+ *
+ * @return string[]
+ *   An array of CSS class names.
  */
-class FullCalendarClassesTest extends UnitTestCase {
+function mymodule_fullcalendar_classes(\Drupal\node\NodeInterface $entity): array {
+  $classes = [];
 
-  /**
-   * Tests hook_fullcalendar_classes() returns expected classes.
-   */
-  public function testFullCalendarClasses() {
-    // Mock the entity implementing EntityInterface.
-    $entity = $this->createMock(EntityInterface::class);
-
-    // Mock a taxonomy term field.
-    $taxonomy_field_name = 'field_event_type';
-
-    // Simulate that the entity has a taxonomy field.
-    $entity->method('hasField')->with($taxonomy_field_name)->willReturn(TRUE);
-
-    // Mock the taxonomy term IDs.
-    $term_ids = [3, 5, 7]; // Example term IDs.
-    $entity->method('get')->with($taxonomy_field_name)->willReturn(
-      new class($term_ids) {
-        private $term_ids;
-        public function __construct($term_ids) { $this->term_ids = $term_ids; }
-        public function getValue() {
-          return array_map(fn($id) => ['target_id' => $id], $this->term_ids);
-        }
-      }
-    );
-
-    // Call the function being tested.
-    $result = hook_fullcalendar_classes($entity);
-
-    // Define expected class names.
-    $expected_classes = ['taxonomy-term-3', 'taxonomy-term-5', 'taxonomy-term-7'];
-
-    // Assert that the expected classes are returned.
-    $this->assertEquals($expected_classes, $result);
+  if ($entity->bundle() !== 'event') {
+    return $classes;
   }
+
+  $vocabulary_id = 'event_category';
+
+  // Load all taxonomy terms for the vocabulary.
+  $terms = \Drupal::entityTypeManager()
+    ->getStorage('taxonomy_term')
+    ->loadByProperties(['vid' => $vocabulary_id]);
+
+  // Sort terms by term ID.
+  usort($terms, fn(\Drupal\taxonomy\TermInterface $a, \Drupal\taxonomy\TermInterface $b) => $a->id() <=> $b->id());
+
+  // Map term ID to index using array_flip().
+  $term_index_map = array_flip(array_map(fn(\Drupal\taxonomy\TermInterface $term) => $term->id(), $terms));
+
+  // Process the entity's assigned taxonomy terms.
+  if ($entity->hasField('field_event_category') && !$entity->get('field_event_category')->isEmpty()) {
+    $event_terms = $entity->get('field_event_category')->referencedEntities();
+
+    foreach ($event_terms as $term) {
+      $tid = $term->id();
+      $term_name = strtolower(str_replace(' ', '-', $term->getName()));
+
+      if (isset($term_index_map[$tid])) {
+        $index = $term_index_map[$tid];
+        $classes[] = "taxonomy-term-$index-$term_name";
+      }
+    }
+  }
+
+  return $classes;
 }
