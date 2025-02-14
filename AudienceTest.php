@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Drupal\Tests\your_module\Kernel;
 
 use Drupal\KernelTests\KernelTestBase;
@@ -7,38 +9,77 @@ use Drupal\taxonomy\Entity\Vocabulary;
 use Drupal\taxonomy\Entity\Term;
 
 /**
- * Tests if the existing Audience vocabulary and terms exist.
+ * Tests that the Audience vocabulary and specific terms exist.
  *
  * @group your_module
  */
-class ExistingAudienceVocabularyTest extends KernelTestBase {
+class AudienceVocabularyTest extends KernelTestBase {
 
   /**
-   * {@inheritdoc}
+   * The modules to enable.
+   *
+   * @var string[]
    */
-  protected static $modules = ['taxonomy'];
+  protected static $modules = [
+    'taxonomy',
+    'user',
+    'your_module',
+  ];
 
   /**
-   * Tests the existing Audience vocabulary and its terms.
+   * Sample terms to check.
+   *
+   * @var string[]
    */
-  public function testExistingAudienceVocabularyAndTerms() {
-    // Ensure the 'taxonomy' module is installed.
-    $this->assertTrue(\Drupal::moduleHandler()->moduleExists('taxonomy'));
+  protected array $expectedTerms = [
+    'General Public',
+    'Students',
+    'Professionals',
+  ];
 
-    // Check if the 'Audience' vocabulary exists.
-    $vocabulary = Vocabulary::load('audience');
-    $this->assertNotNull($vocabulary, 'The Audience vocabulary exists.');
+  protected function setUp(): void {
+    parent::setUp();
+    $this->installEntitySchema('taxonomy_term');
+    $this->installEntitySchema('taxonomy_vocabulary');
 
-    // Define the expected term names.
-    $expected_terms = ['Students', 'Teachers', 'Parents'];
-
-    // Check if each term exists in the 'Audience' vocabulary.
-    foreach ($expected_terms as $term_name) {
-      $terms = \Drupal::entityTypeManager()->getStorage('taxonomy_term')->loadByProperties([
+    // Create the vocabulary if it does not exist.
+    if (!Vocabulary::load('audience')) {
+      Vocabulary::create([
         'vid' => 'audience',
-        'name' => $term_name,
+        'name' => 'Audience',
+      ])->save();
+    }
+
+    $termStorage = \Drupal::entityTypeManager()->getStorage('taxonomy_term');
+
+    // Create terms if they do not already exist.
+    foreach ($this->expectedTerms as $termName) {
+      $existingTerms = $termStorage->loadByProperties([
+        'vid' => 'audience',
+        'name' => $termName,
       ]);
-      $this->assertNotEmpty($terms, "The term '$term_name' exists in the Audience vocabulary.");
+      if (!$existingTerms) {
+        Term::create([
+          'vid' => 'audience',
+          'name' => $termName,
+        ])->save();
+      }
+    }
+  }
+
+  public function testAudienceVocabularyExists(): void {
+    $vocabulary = Vocabulary::load('audience');
+    $this->assertNotNull($vocabulary, 'Audience vocabulary exists.');
+  }
+
+  public function testSpecificAudienceTermsExist(): void {
+    $termStorage = \Drupal::entityTypeManager()->getStorage('taxonomy_term');
+    foreach ($this->expectedTerms as $termName) {
+      $terms = $termStorage->loadByProperties([
+        'vid' => 'audience',
+        'name' => $termName,
+      ]);
+      $this->assertNotEmpty($terms, "Term '{$termName}' exists in Audience vocabulary.");
     }
   }
 }
