@@ -1,0 +1,51 @@
+terms:
+  vocabulary: categories
+  items:
+    - id: news
+      label: "News"
+    - id: blog
+      label: "Blog"
+    - id: tutorials
+      label: "Tutorials"
+
+
+use Drupal\taxonomy\Entity\Term;
+use Drupal\taxonomy\Entity\Vocabulary;
+
+/**
+ * Import taxonomy terms from configuration.
+ */
+function my_module_post_update_import_terms() {
+  $config = \Drupal::config('my_module.taxonomy_terms');
+  $vocabulary_id = $config->get('vocabulary');
+
+  // Ensure vocabulary exists.
+  if (!Vocabulary::load($vocabulary_id)) {
+    $vocabulary = Vocabulary::create([
+      'vid' => $vocabulary_id,
+      'name' => ucfirst($vocabulary_id),
+    ]);
+    $vocabulary->save();
+  }
+
+  $existing_terms = \Drupal::entityTypeManager()
+    ->getStorage('taxonomy_term')
+    ->loadByProperties(['vid' => $vocabulary_id]);
+
+  $existing_term_names = [];
+  foreach ($existing_terms as $term) {
+    $existing_term_names[$term->get('field_machine_name')->value] = $term;
+  }
+
+  foreach ($config->get('items') as $item) {
+    if (!isset($existing_term_names[$item['id']])) {
+      $term = Term::create([
+        'vid' => $vocabulary_id,
+        'name' => $item['label'],
+        'field_machine_name' => $item['id'], // Custom field to store machine names.
+      ]);
+      $term->save();
+    }
+  }
+}
+
