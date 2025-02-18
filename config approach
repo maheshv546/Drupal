@@ -95,3 +95,53 @@ my_module.taxonomy.*:
             label: "Term Name"
 
 
+
+namespace Drupal\Tests\my_module\Functional;
+
+use Drupal\taxonomy\Entity\Term;
+use Drupal\Tests\BrowserTestBase;
+
+/**
+ * Tests the taxonomy update hook and verifies taxonomy terms exist.
+ *
+ * @group my_module
+ */
+class TaxonomyUpdateTest extends BrowserTestBase {
+
+  /**
+   * The modules to enable.
+   *
+   * @var array
+   */
+  protected static $modules = ['my_module', 'taxonomy'];
+
+  /**
+   * Tests if the taxonomy update hook creates the expected terms.
+   */
+  public function testTaxonomyUpdate() {
+    // Run update hook.
+    $this->container->get('module_handler')->invoke('my_module', 'update_9001');
+
+    // Load terms from the database.
+    $terms = Term::loadMultiple();
+    $this->assertNotEmpty($terms, 'Taxonomy terms exist in the database.');
+
+    // Check if specific terms exist by their names.
+    $expected_terms = ['Term One', 'Term Two', 'Term Three'];
+    $found_terms = [];
+
+    foreach ($terms as $term) {
+      $found_terms[] = $term->label();
+    }
+
+    // Ensure all expected terms are in the database.
+    foreach ($expected_terms as $expected) {
+      $this->assertContains($expected, $found_terms, "Found expected term: $expected");
+    }
+
+    // Verify the vocabulary.
+    foreach ($terms as $term) {
+      $this->assertEquals('my_vocabulary', $term->bundle(), 'Term belongs to the correct vocabulary.');
+    }
+  }
+}
