@@ -145,3 +145,16 @@ class TaxonomyUpdateTest extends BrowserTestBase {
     }
   }
 }
+
+my_module.taxonomy.*:
+  type: mapping
+  label: "Taxonomy Terms Configuration"
+  mapping:
+    terms:
+      type: mapping
+      label: "Terms"
+      mapping:
+        "*":
+          type: string
+          label: "Term Name"
+
