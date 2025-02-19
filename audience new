@@ -1,0 +1,35 @@
+use Drupal\taxonomy\Entity\Term;
+
+/**
+ * Implements hook_update_N().
+ */
+function my_module_update_N() {
+  $config = \Drupal::config('my_module.taxonomy_terms');
+  $vocabulary_machine_name = 'vocabulary_machine_name'; // Change this as needed
+  $terms = $config->get($vocabulary_machine_name . '.terms') ?? [];
+
+  foreach ($terms as $key => $term_data) {
+    $existing_terms = \Drupal::entityTypeManager()
+      ->getStorage('taxonomy_term')
+      ->loadByProperties(['name' => $term_data['name'], 'vid' => $vocabulary_machine_name]);
+
+    if (empty($existing_terms)) {
+      $term = Term::create([
+        'vid' => $vocabulary_machine_name,
+        'name' => $term_data['name'],
+        'description' => $term_data['description'],
+      ]);
+      $term->save();
+      \Drupal::logger('my_module')->notice("Created taxonomy term: @name", ['@name' => $term_data['name']]);
+    }
+  }
+}
+vocabulary_machine_name:
+  terms:
+    term_1:
+      name: "Term One"
+      description: "This is term one"
+    term_2:
+      name: "Term Two"
+      description: "This is term two"
+
