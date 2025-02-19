@@ -1,3 +1,8 @@
+
+
+
+
+
 namespace Drupal\my_module\Service;
 
 use Drupal\Core\Config\ConfigFactoryInterface;
@@ -158,3 +163,27 @@ my_module.taxonomy.*:
           type: string
           label: "Term Name"
 
+$term_objects = [];
+foreach ($terms as $id => $name) {
+  $term_objects[] = ['id' => (string) $id, 'name' => $name];
+}
+
+$config->set('terms', $term_objects)->save();
+
+my_module.taxonomy.*:
+  type: mapping
+  label: "Taxonomy Terms Configuration"
+  mapping:
+    terms:
+      type: sequence
+      label: "List of Terms"
+      sequence:
+        type: mapping
+        label: "Term"
+        mapping:
+          id:
+            type: string
+            label: "Term ID"
+          name:
+            type: string
+            label: "Term Name"
