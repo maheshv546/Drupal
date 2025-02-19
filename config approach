@@ -187,3 +187,77 @@ my_module.taxonomy.*:
           name:
             type: string
             label: "Term Name"
+
+namespace Drupal\my_module\Service;
+
+use Drupal\Core\Config\ConfigFactoryInterface;
+use Drupal\Core\Entity\EntityTypeManagerInterface;
+use Drupal\taxonomy\Entity\Term;
+
+class TaxonomyConfigService {
+
+  protected ConfigFactoryInterface $configFactory;
+  protected EntityTypeManagerInterface $entityTypeManager;
+
+  public function __construct(ConfigFactoryInterface $configFactory, EntityTypeManagerInterface $entityTypeManager) {
+    $this->configFactory = $configFactory;
+    $this->entityTypeManager = $entityTypeManager;
+  }
+
+  /**
+   * Updates taxonomy terms in both configuration and database.
+   *
+   * @param string $vocabulary
+   *   The vocabulary machine name.
+   * @param array $new_terms
+   *   An associative array of new terms ['term_id' => 'Term Name'].
+   */
+  public function updateTaxonomy(string $vocabulary, array $new_terms): void {
+    $config = $this->configFactory->getEditable("my_module.taxonomy.{$vocabulary}");
+
+    // Load existing terms from configuration.
+    $existing_terms = $config->get('terms') ?? [];
+
+    // Load terms from database.
+    $term_storage = $this->entityTypeManager->getStorage('taxonomy_term');
+    $db_terms = $term_storage->loadByProperties(['vid' => $vocabulary]);
+
+    $db_terms_by_id = [];
+    foreach ($db_terms as $term) {
+      $db_terms_by_id[$term->id()] = $term;
+    }
+
+    // Process terms: Update, Create new, and Remove outdated ones.
+    foreach ($new_terms as $id => $name) {
+      if (isset($db_terms_by_id[$id])) {
+        // Update existing term in the database.
+        $db_terms_by_id[$id]->setName($name);
+        $db_terms_by_id[$id]->save();
+      } else {
+        // Create a new term in the database.
+        $term = Term::create([
+          'vid' => $vocabulary,
+          'name' => $name,
+        ]);
+        $term->save();
+      }
+    }
+
+    // Store the updated terms in configuration.
+    $config->set('terms', $new_terms)->save();
+  }
+
+  /**
+   * Retrieves taxonomy terms from configuration.
+   *
+   * @param string $vocabulary
+   *   The vocabulary machine name.
+   *
+   * @return array
+   *   An associative array of stored terms ['term_id' => 'Term Name'].
+   */
+  public function getTaxonomyConfig(string $vocabulary): array {
+    return $this->configFactory->get("my_module.taxonomy.{$vocabulary}")->get('terms') ?? [];
+  }
+}
+
