@@ -10,3 +10,41 @@ default_terms:
     term_2: "Employee Benefits"
     term_3: "Investment Management"
 
+
+default_terms:
+  type: mapping
+  label: 'Default Terms'
+  mapping:
+    audience:
+      type: mapping
+      label: 'Audience'
+      mapping:
+        term_1:
+          type: string
+          label: 'Term 1'
+        term_2:
+          type: string
+          label: 'Term 2'
+        term_3:
+          type: string
+          label: 'Term 3'
+        term_4:
+          type: string
+          label: 'Term 4'
+        term_5:
+          type: string
+          label: 'Term 5'
+    line_of_business:
+      type: mapping
+      label: 'Line of Business'
+      mapping:
+        term_1:
+          type: string
+          label: 'Term 1'
+        term_2:
+          type: string
+          label: 'Term 2'
+        term_3:
+          type: string
+          label: 'Term 3'
+
