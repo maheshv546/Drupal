@@ -48,3 +48,45 @@ default_terms:
           type: string
           label: 'Term 3'
 
+
+voya_content.settings:
+  type: config_object
+  label: 'Voya Content Settings'
+  mapping:
+    default_terms:
+      type: mapping
+      label: 'Default Terms'
+      mapping:
+        audience:
+          type: mapping
+          label: 'Audience'
+          mapping:
+            term_1:
+              type: string
+              label: 'Audience Term 1'
+            term_2:
+              type: string
+              label: 'Audience Term 2'
+            term_3:
+              type: string
+              label: 'Audience Term 3'
+            term_4:
+              type: string
+              label: 'Audience Term 4'
+            term_5:
+              type: string
+              label: 'Audience Term 5'
+        line_of_business:
+          type: mapping
+          label: 'Line of Business'
+          mapping:
+            term_1:
+              type: string
+              label: 'Line of Business Term 1'
+            term_2:
+              type: string
+              label: 'Line of Business Term 2'
+            term_3:
+              type: string
+              label: 'Line of Business Term 3'
+
