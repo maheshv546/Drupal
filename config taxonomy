@@ -1,0 +1,23 @@
+/**
+ * Updates taxonomy terms using configuration.
+ */
+function mymodule_update_9001() {
+  $vocabulary_id = 'my_vocabulary';
+
+  // Define new terms in the config.
+  $new_terms = [
+    'new_term_1' => 'Updated Term 1',
+    'new_term_2' => 'Updated Term 2',
+  ];
+
+  // Load existing terms from config.
+  $config = \Drupal::service('config.factory')->getEditable("mymodule.taxonomy.$vocabulary_id");
+  
+  // Save new terms.
+  $config->set('terms', $new_terms)->save();
+}
+terms:
+  term_1: 'Old Term 1'
+  term_2: 'Old Term 2'
+
+
