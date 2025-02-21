@@ -1,0 +1,11 @@
+default_terms:
+  audience:
+   - Individuals
+   - Employers
+   - Financial Professionals
+   - Voya Financial Advisors
+   - Institutional Investors
+  line_of_business:
+   - Retirement
+   - Employee Benefits
+   - Investment Management
