@@ -159,3 +159,64 @@ voya_content.settings:
               type: string
               label: 'Line of Business Term 3'
 
+/**
+ * Update audience taxonomy terms from settings.php override, replacing them based on weight.
+ */
+function my_module_update_9001() {
+  $config_factory = \Drupal::configFactory();
+  $config_name = 'my_module.default_terms';
+
+  // Fetch overridden config (settings.php overrides take priority).
+  $terms_config = $config_factory->get($config_name);
+
+  if (!$terms_config) {
+    \Drupal::logger('my_module')->warning('No configuration found for my_module.default_terms.');
+    return;
+  }
+
+  foreach ($terms_config->get() as $vocabulary => $new_terms) {
+    $storage = \Drupal::entityTypeManager()->getStorage('taxonomy_term');
+
+    // Load existing terms by weight.
+    $existing_terms = $storage->loadByProperties(['vid' => $vocabulary]);
+    $existing_terms_by_weight = [];
+
+    foreach ($existing_terms as $term) {
+      $existing_terms_by_weight[$term->getWeight()] = $term;
+    }
+
+    // Track terms that should remain.
+    $terms_to_keep = [];
+    $weight = 0;
+
+    foreach ($new_terms as $term_name) {
+      if (isset($existing_terms_by_weight[$weight])) {
+        // Update existing term with the same weight.
+        $existing_term = $existing_terms_by_weight[$weight];
+        $existing_term->setName($term_name);
+        $existing_term->save();
+        $terms_to_keep[] = $existing_term->id();
+      } else {
+        // Create a new term if no matching weight exists.
+        $new_term = $storage->create([
+          'vid' => $vocabulary,
+          'name' => $term_name,
+          'weight' => $weight,
+        ]);
+        $new_term->save();
+        $terms_to_keep[] = $new_term->id();
+      }
+      $weight++;
+    }
+
+    // Remove terms that are no longer in the list.
+    foreach ($existing_terms as $term) {
+      if (!in_array($term->id(), $terms_to_keep)) {
+        $term->delete();
+      }
+    }
+  }
+
+  \Drupal::logger('my_module')->notice('Updated audience taxonomy terms based on weight from settings.php override.');
+}
+
