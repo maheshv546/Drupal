@@ -220,3 +220,90 @@ function my_module_update_9001() {
   \Drupal::logger('my_module')->notice('Updated audience taxonomy terms based on weight from settings.php override.');
 }
 
+<?php
+
+namespace Drupal\Tests\your_module\Kernel;
+
+use Drupal\KernelTests\KernelTestBase;
+use Drupal\taxonomy\Entity\Vocabulary;
+use Drupal\taxonomy\Entity\Term;
+
+/**
+ * Tests the order of Business Line taxonomy terms.
+ *
+ * @group your_module
+ */
+class BusinessLineTermOrderTest extends KernelTestBase {
+
+  /**
+   * {@inheritdoc}
+   */
+  protected static $modules = [
+    'taxonomy',
+    'your_module',
+    'system',
+  ];
+
+  /**
+   * The vocabulary ID for business lines.
+   */
+  protected const VOCABULARY_ID = 'business_line';
+
+  /**
+   * Set up environment.
+   */
+  protected function setUp(): void {
+    parent::setUp();
+    $this->installEntitySchema('taxonomy_term');
+    $this->installEntitySchema('user');
+    $this->installSchema('taxonomy', ['taxonomy_term_data']);
+    
+    // Create the Business Line vocabulary.
+    Vocabulary::create([
+      'vid' => self::VOCABULARY_ID,
+      'name' => 'Business Line',
+    ])->save();
+
+    // Create taxonomy terms with different weights.
+    $this->createTerm('Finance', 2);
+    $this->createTerm('Technology', 1);
+    $this->createTerm('Healthcare', 3);
+  }
+
+  /**
+   * Creates a taxonomy term.
+   *
+   * @param string $name
+   *   The name of the term.
+   * @param int $weight
+   *   The weight of the term.
+   */
+  protected function createTerm(string $name, int $weight): void {
+    Term::create([
+      'vid' => self::VOCABULARY_ID,
+      'name' => $name,
+      'weight' => $weight,
+    ])->save();
+  }
+
+  /**
+   * Tests that Business Line terms are ordered by weight.
+   */
+  public function testBusinessLineTermsOrder(): void {
+    $terms = \Drupal::entityTypeManager()
+      ->getStorage('taxonomy_term')
+      ->loadByProperties(['vid' => self::VOCABULARY_ID]);
+
+    // Sort terms by weight.
+    usort($terms, fn($a, $b) => $a->getWeight() <=> $b->getWeight());
+
+    // Extract term names in expected order.
+    $actual_order = array_map(fn($term) => $term->getName(), $terms);
+
+    // Expected order based on weight.
+    $expected_order = ['Technology', 'Finance', 'Healthcare'];
+
+    $this->assertEquals($expected_order, $actual_order, 'The Business Line terms are sorted correctly by weight.');
+  }
+
+}
