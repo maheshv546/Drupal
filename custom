@@ -71,3 +71,55 @@ class YourModuleTest extends BrowserTestBase {
   }
 }
 
+public function testAudienceTermUpdate() {
+  // Install the module properly.
+  \Drupal::service('module_installer')->install(['your_module']);
+
+  // Manually set the config override for the test environment.
+  $configFactory = \Drupal::service('config.factory.mutable');
+  $configFactory->set('audience_terms', [
+    'audience_terms' => [
+      ['id' => 'audience_1', 'name' => 'Corporate Employees'],
+      ['id' => 'audience_2', 'name' => 'University Faculty'],
+      ['id' => 'audience_3', 'name' => 'Independent Consultants'],
+      ['id' => 'audience_4', 'name' => 'Government Officials'],
+    ],
+  ]);
+  $configFactory->save('audience_terms');
+
+  // Clear config cache.
+  \Drupal::service('cache.config')->deleteAll();
+
+  // Rebuild the container.
+  \Drupal::service('kernel')->rebuildContainer();
+  drupal_static_reset();
+
+  // Run the update hook.
+  \Drupal::service('module_handler')->invoke('your_module', 'update_9001');
+
+  // Verify terms exist in the database.
+  $terms = \Drupal::entityTypeManager()
+    ->getStorage('taxonomy_term')
+    ->loadByProperties(['vid' => 'audience']);
+
+  $this->assertNotEmpty($terms, 'Audience terms exist in the database.');
+
+  // Expected terms from the overridden config (new site scenario).
+  $expected_terms = [
+    'Corporate Employees',
+    'University Faculty',
+    'Independent Consultants',
+    'Government Officials',
+  ];
+
+  $actual_terms = array_map(fn($t) => $t->getName(), $terms);
+
+  // Ensure all expected terms are present.
+  foreach ($expected_terms as $term_name) {
+    $this->assertTrue(in_array($term_name, $actual_terms), "Term '{$term_name}' exists.");
+  }
+
+  // Ensure no unexpected terms exist.
+  $this->assertCount(count($expected_terms), $terms, 'Only expected terms exist.');
+}
+
