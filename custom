@@ -31,4 +31,43 @@ function your_module_update_9001() {
   }
 }
 
+namespace Drupal\Tests\your_module\Functional;
+
+use Drupal\Tests\BrowserTestBase;
+use Drupal\taxonomy\Entity\Term;
+
+/**
+ * Tests the audience taxonomy term update.
+ *
+ * @group your_module
+ */
+class YourModuleTest extends BrowserTestBase {
+
+  protected static $modules = ['your_module', 'taxonomy'];
+
+  /**
+   * Test audience taxonomy term creation.
+   */
+  public function testAudienceTermUpdate() {
+    // Run the update hook.
+    $this->container->get('module_handler')->install(['your_module']);
+    \Drupal::service('kernel')->rebuildContainer();
+    drupal_static_reset();
+    \Drupal::service('database')->query("DELETE FROM cache_config");
+
+    // Verify terms exist in the database.
+    $terms = \Drupal::entityTypeManager()
+      ->getStorage('taxonomy_term')
+      ->loadByProperties(['vid' => 'audience']);
+
+    $this->assertNotEmpty($terms, 'Audience terms exist in the database.');
+
+    $expected_terms = ['General Public', 'Graduate Students', 'Academic Researchers', 'Industry Professionals'];
+    $actual_terms = array_map(fn($t) => $t->getName(), $terms);
+
+    foreach ($expected_terms as $term_name) {
+      $this->assertTrue(in_array($term_name, $actual_terms), "Term '{$term_name}' exists.");
+    }
+  }
+}
 
