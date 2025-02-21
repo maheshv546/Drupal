@@ -1,11 +1,34 @@
-default_terms:
-  audience:
-   - Individuals
-   - Employers
-   - Financial Professionals
-   - Voya Financial Advisors
-   - Institutional Investors
-  line_of_business:
-   - Retirement
-   - Employee Benefits
-   - Investment Management
+use Drupal\taxonomy\Entity\Term;
+
+/**
+ * Update audience taxonomy terms from configuration.
+ */
+function your_module_update_9001() {
+  $config = \Drupal::config('audience_terms');
+  $terms = $config->get('audience_terms') ?? [];
+
+  if (!empty($terms)) {
+    $vid = 'audience';
+    $existing_terms = \Drupal::entityTypeManager()
+      ->getStorage('taxonomy_term')
+      ->loadByProperties(['vid' => $vid]);
+
+    $existing_term_names = [];
+    foreach ($existing_terms as $term) {
+      $existing_term_names[$term->id()] = $term->getName();
+    }
+
+    foreach ($terms as $term_data) {
+      $existing_term = array_search($term_data['name'], $existing_term_names);
+      if ($existing_term === false) {
+        $term = Term::create([
+          'vid' => $vid,
+          'name' => $term_data['name'],
+        ]);
+        $term->save();
+      }
+    }
+  }
+}
+
+
