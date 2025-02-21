@@ -11,6 +11,75 @@ default_terms:
     - Investment Management
 
 
+public function testMultipleVocabularyTermUpdate() {
+  // Install the module properly.
+  \Drupal::service('module_installer')->install(['your_module']);
+
+  // Manually set the config override for the test environment.
+  $configFactory = \Drupal::service('config.factory')->getEditable('your_module.default_terms');
+  $configFactory->set('default_terms', [
+    'audience' => [
+      'Individuals',
+      'Employers',
+      'Financial Professionals',
+      'Voya Financial Advisors',
+      'Institutional Investors',
+    ],
+    'line_of_business' => [
+      'Retirement',
+      'Employee Benefits',
+      'Investment Management',
+    ],
+  ])->save();
+
+  // Clear config cache.
+  \Drupal::service('cache.config')->deleteAll();
+
+  // Rebuild the container.
+  \Drupal::service('kernel')->rebuildContainer();
+  drupal_static_reset();
+
+  // Run the update hook.
+  \Drupal::service('module_handler')->invoke('your_module', 'update_9001');
+
+  // Define expected terms per vocabulary.
+  $expected_terms = [
+    'audience' => [
+      'Individuals',
+      'Employers',
+      'Financial Professionals',
+      'Voya Financial Advisors',
+      'Institutional Investors',
+    ],
+    'line_of_business' => [
+      'Retirement',
+      'Employee Benefits',
+      'Investment Management',
+    ],
+  ];
+
+  foreach ($expected_terms as $vocabulary => $terms_list) {
+    // Fetch terms from the database.
+    $terms = \Drupal::entityTypeManager()
+      ->getStorage('taxonomy_term')
+      ->loadByProperties(['vid' => $vocabulary]);
+
+    $this->assertNotEmpty($terms, "Terms exist in vocabulary '{$vocabulary}'.");
+
+    // Extract term names.
+    $actual_terms = array_map(fn($t) => $t->getName(), $terms);
+
+    // Ensure all expected terms are present.
+    foreach ($terms_list as $term_name) {
+      $this->assertTrue(in_array($term_name, $actual_terms), "Term '{$term_name}' exists in '{$vocabulary}'.");
+    }
+
+    // Ensure no unexpected terms exist.
+    $this->assertCount(count($terms_list), $terms, "Only expected terms exist in '{$vocabulary}'.");
+  }
+}
+
+
 default_terms:
   type: mapping
   label: 'Default Terms'
