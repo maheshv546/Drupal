@@ -1,14 +1,14 @@
 default_terms:
   audience:
-    term_1: "Individuals"
-    term_2: "Employers"
-    term_3: "Financial Professionals"
-    term_4: "Voya Financial Advisors"
-    term_5: "Institutional Investors" 
+    - Individuals
+    - Employers
+    - Financial Professionals
+    - Voya Financial Advisors
+    - Institutional Investors
   line_of_business:
-    term_1: "Retirement"
-    term_2: "Employee Benefits"
-    term_3: "Investment Management"
+    - Retirement
+    - Employee Benefits
+    - Investment Management
 
 
 default_terms:
