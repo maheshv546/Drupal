@@ -1,4 +1,4 @@
-default_terms:
+hi default_terms:
   audience:
     - Individuals
     - Employers
@@ -306,4 +306,11 @@ class BusinessLineTermOrderTest extends KernelTestBase {
     $this->assertEquals($expected_order, $actual_order, 'The Business Line terms are sorted correctly by weight.');
   }
 
+}
+
+function site_abaretirement_config_override(&$config, $context) {
+  if ($context == 'voya_content.settings') {
+    \Drupal::logger('site_abaretirement')->notice('Config override applied.');
+    $config['default_terms']['audience'] = ['New Overridden Term 1', 'New Overridden Term 2'];
+  }
 }
