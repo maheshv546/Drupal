@@ -353,3 +353,34 @@ function site_abaretirement_config_override(&$config, $context) {
     $config['default_terms']['audience'] = ['New Overridden Term 1', 'New Overridden Term 2'];
   }
 }
+/**
+ * Update hook to reset taxonomy terms and create new ones.
+ */
+function mymodule_update_9001() {
+  $vocabulary = 'my_vocabulary'; // Change to your vocabulary machine name.
+  $term_storage = \Drupal::entityTypeManager()->getStorage('taxonomy_term');
+
+  // Load and delete existing terms.
+  $terms = $term_storage->loadByProperties(['vid' => $vocabulary]);
+  if (!empty($terms)) {
+    $term_storage->delete($terms);
+  }
+
+  // Define new terms.
+  $new_terms = [
+    'Term One',
+    'Term Two',
+    'Term Three',
+  ];
+
+  foreach ($new_terms as $term_name) {
+    $term = $term_storage->create([
+      'vid' => $vocabulary,
+      'name' => $term_name,
+    ]);
+    $term->save();
+  }
+
+  \Drupal::messenger()->addMessage(t('Taxonomy terms updated for %vocab.', ['%vocab' => $vocabulary]));
+}
+
