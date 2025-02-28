@@ -1,134 +1,60 @@
 /**
- * Implements template_preprocess_views_view().
- */
-function mymodule_preprocess_views_view(array &$variables): void {
-  // Ensure we are processing the correct FullCalendar view.
-  if ($variables['view']->id() === 'fullcalendar' && $variables['view']->current_display === 'block_1') {
-    
-    // Add a general theme suggestion for the FullCalendar view.
-    $variables['theme_hook_suggestions'][] = 'views_view__fullcalendar';
-
-    // Process event taxonomy terms for each row.
-    foreach ($variables['rows'] as $key => &$row) {
-      if (isset($variables['view']->result[$key]->_entity) && $variables['view']->result[$key]->_entity instanceof \Drupal\node\NodeInterface) {
-        $node = $variables['view']->result[$key]->_entity;
-
-        // Get taxonomy terms from a specific field (change field name if needed).
-        $terms = $node->hasField('field_event_category') && !$node->get('field_event_category')->isEmpty()
-          ? $node->get('field_event_category')->referencedEntities()
-          : [];
-
-        // Generate term labels and CSS classes.
-        $term_labels = [];
-        foreach ($terms as $term) {
-          $tid = $term->id();
-          $term_name = $term->getName();
-          $css_class = "taxonomy-term-" . $tid . "-" . strtolower(str_replace(' ', '-', $term_name));
-
-          // Store the term label with its associated class.
-          $term_labels[] = [
-            'label' => $term_name,
-            'class' => $css_class,
-          ];
-        }
-
-        // Pass the terms to the template for this row.
-        $row['event_terms'] = $term_labels;
-      }
-    }
-  }
-}
-
-<div class="fullcalendar-wrapper">
-  <h2>Events</h2>
-  <div class="calendar">
-    {% for row in rows %}
-      <div class="calendar-event">
-        <h3>{{ row.title }}</h3>
-
-        <div class="calendar-event-meta">
-          <span class="event-label">Events:</span>
-
-          <span class="event-taxonomy">
-            {% for term in row.event_terms %}
-              <span class="event-term {{ term.class }}">{{ term.label }}</span>
-            {% endfor %}
-          </span>
-        </div>
-      </div>
-    {% endfor %}
-  </div>
-</div>
-
-.calendar-event-meta {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.event-label {
-  font-weight: bold;
-}
-
-.event-taxonomy {
-  display: flex;
-  gap: 5px;
-}
-
-.event-term {
-  padding: 2px 6px;
-  border-radius: 3px;
-  background-color: #f3f3f3;
-  font-size: 12px;
-}
-/**
  * Implements template_preprocess_views_view__fullcalendar().
  */
 function mymodule_preprocess_views_view__fullcalendar(array &$variables): void {
   // Ensure we are modifying the correct FullCalendar view.
   if ($variables['view']->id() === 'fullcalendar' && $variables['view']->current_display === 'block_1') {
+    
+    // Load all terms in the vocabulary and sort them by weight.
+    $vocabulary = 'event_category'; // Replace with the actual vocabulary machine name.
+    $terms = \Drupal::entityTypeManager()->getStorage('taxonomy_term')->loadByProperties(['vid' => $vocabulary]);
+    
+    // Sort terms by weight.
+    usort($terms, function ($a, $b) {
+      return $a->getWeight() <=> $b->getWeight();
+    });
 
-    // Load all terms in the vocabulary and create an indexed list.
-    $vocabulary = 'event_categories'; // Change to your vocabulary machine name.
-    $terms = \Drupal::entityTypeManager()
-      ->getStorage('taxonomy_term')
-      ->loadByProperties(['vid' => $vocabulary]);
-
-    // Create an indexed array for term order.
-    $term_order = [];
+    // Create an index mapping term IDs to their order based on weight.
+    $term_weight_index = [];
     foreach ($terms as $index => $term) {
-      $term_order[$term->id()] = $index; // Index terms based on their order.
+      $term_weight_index[$term->id()] = $index;
     }
 
-    // Process view results.
+    // Loop through the view's raw result data.
     foreach ($variables['view']->result as $index => $row) {
+      // Ensure this row contains a valid Node entity.
       if (isset($row->_entity) && $row->_entity instanceof \Drupal\node\NodeInterface) {
         $event = $row->_entity;
 
+        // Check if the event has a taxonomy reference field.
         if ($event->hasField('field_event_category') && !$event->get('field_event_category')->isEmpty()) {
+          $term_labels = [];
+
+          // Get event's taxonomy terms.
           $event_terms = $event->get('field_event_category')->referencedEntities();
 
-          $sorted_terms = [];
-          foreach ($event_terms as $term) {
+          // Sort event terms by weight using the predefined order.
+          usort($event_terms, function ($a, $b) use ($term_weight_index) {
+            return $term_weight_index[$a->id()] <=> $term_weight_index[$b->id()];
+          });
+
+          // Build the array of terms with CSS classes.
+          foreach ($event_terms as $event_term_index => $term) {
             $tid = $term->id();
-            if (isset($term_order[$tid])) {
-              $sorted_terms[$term_order[$tid]] = [
-                'label' => $term->getName(),
-                'class' => "taxonomy-term-" . $tid . "-" . strtolower(str_replace(' ', '-', $term->getName())),
-              ];
-            }
+            $term_name = $term->getName();
+            $css_class = "taxonomy-term-{$tid}-index-{$event_term_index}";
+
+            $term_labels[] = [
+              'label' => $term_name,
+              'class' => $css_class,
+              'index' => $event_term_index,
+            ];
           }
 
-          // Sort terms by their predefined index order.
-          ksort($sorted_terms);
-
-          // Attach sorted taxonomy terms to the row.
-          $variables['rows'][$index]['event_terms'] = array_values($sorted_terms);
+          // Attach processed taxonomy data to the row.
+          $variables['rows'][$index]['event_terms'] = $term_labels;
         }
       }
     }
   }
 }
-.taxonomy-term-1-workshop { background-color: #ffcc00; }
-.taxonomy-term-2-webinar { background-color: #0099ff; }
-.taxonomy-term-3-conference { background-color: #66cc66; }
