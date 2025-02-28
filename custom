@@ -146,6 +146,24 @@ function mymodule_preprocess_views_view(array &$variables): void {
     }
   }
 }
+
+<div class="fullcalendar-wrapper">
+  {% for row in rows %}
+    <div class="calendar-event">
+      <h3 class="calendar-event-title">{{ row.title }}</h3>
+
+      <div class="calendar-event-meta">
+        <span class="event-label">Events:</span>
+
+        <span class="event-taxonomy">
+          {% for term in row.event_terms %}
+            <span class="event-term {{ term.class }}">{{ term.label }}</span>
+          {% endfor %}
+        </span>
+      </div>
+    </div>
+  {% endfor %}
+</div>
 .taxonomy-term-1-workshop { background-color: #ffcc00; }
 .taxonomy-term-2-webinar { background-color: #0099ff; }
 .taxonomy-term-3-conference { background-color: #66cc66; }
