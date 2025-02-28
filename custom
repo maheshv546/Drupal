@@ -70,7 +70,44 @@ function mymodule_preprocess_fullcalendar_event(array &$variables): void {
   background-color: #f3f3f3;
   font-size: 12px;
 }
+/**
+ * Implements hook_preprocess_views_view().
+ *
+ * Overrides the FullCalendar view to add taxonomy terms with classes.
+ */
+function mymodule_preprocess_views_view(array &$variables): void {
+  // Check if this is the correct view and display.
+  if ($variables['view']->id() === 'fullcalendar_events' && $variables['display_id'] === 'block_1') {
+    foreach ($variables['rows'] as &$row) {
+      // Get the node entity from the view row.
+      if (!isset($row['#row']->_entity) || !$row['#row']->_entity instanceof \Drupal\node\NodeInterface) {
+        continue;
+      }
 
+      $event = $row['#row']->_entity;
+
+      // Get the taxonomy terms and generate CSS classes.
+      $terms = $event->hasField('field_event_category') && !$event->get('field_event_category')->isEmpty()
+        ? $event->get('field_event_category')->referencedEntities()
+        : [];
+
+      $term_labels = [];
+      foreach ($terms as $term) {
+        $tid = $term->id();
+        $term_name = strtolower(str_replace(' ', '-', $term->getName()));
+        $css_class = "taxonomy-term-" . $tid . "-" . $term_name;
+        
+        $term_labels[] = [
+          'label' => $term->getName(),
+          'class' => $css_class,
+        ];
+      }
+
+      // Add term labels and classes to the row variables.
+      $row['#event_terms'] = $term_labels;
+    }
+  }
+}
 .taxonomy-term-1-workshop { background-color: #ffcc00; }
 .taxonomy-term-2-webinar { background-color: #0099ff; }
 .taxonomy-term-3-conference { background-color: #66cc66; }
