@@ -108,6 +108,44 @@ function mymodule_preprocess_views_view(array &$variables): void {
     }
   }
 }
+
+
+/**
+ * Implements template_preprocess_views_view().
+ */
+function mymodule_preprocess_views_view(array &$variables): void {
+  // Ensure we are targeting the FullCalendar view and correct display.
+  if ($variables['view']->id() === 'fullcalendar' && $variables['view']->current_display === 'block_1') {
+
+    foreach ($variables['rows'] as &$row) {
+      // Ensure we have a node entity.
+      if (!isset($row->_entity) || !$row->_entity instanceof \Drupal\node\NodeInterface) {
+        continue;
+      }
+
+      $node = $row->_entity;
+      $terms = [];
+      
+      // Check if the node has taxonomy field 'field_event_category'.
+      if ($node->hasField('field_event_category') && !$node->get('field_event_category')->isEmpty()) {
+        foreach ($node->get('field_event_category')->referencedEntities() as $term) {
+          $tid = $term->id();
+          $term_name = $term->getName();
+          $css_class = "taxonomy-term-" . $tid . "-" . strtolower(str_replace(' ', '-', $term_name));
+
+          // Store term name and class.
+          $terms[] = [
+            'label' => $term_name,
+            'class' => $css_class,
+          ];
+        }
+      }
+
+      // Pass the formatted taxonomy terms to the template.
+      $row->event_terms = $terms;
+    }
+  }
+}
 .taxonomy-term-1-workshop { background-color: #ffcc00; }
 .taxonomy-term-2-webinar { background-color: #0099ff; }
 .taxonomy-term-3-conference { background-color: #66cc66; }
