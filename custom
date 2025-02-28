@@ -1,125 +1,83 @@
+<?php
+
+namespace Drupal\custom_taxonomy_block\Plugin\Block;
+
+use Drupal\Core\Block\BlockBase;
 use Drupal\taxonomy\Entity\Term;
+use Drupal\Core\Entity\EntityTypeManagerInterface;
+use Symfony\Component\DependencyInjection\ContainerInterface;
+use Drupal\Core\Plugin\ContainerFactoryPluginInterface;
 
 /**
- * Update audience taxonomy terms from configuration.
- */
-function your_module_update_9001() {
-  $config = \Drupal::config('audience_terms');
-  $terms = $config->get('audience_terms') ?? [];
-
-  if (!empty($terms)) {
-    $vid = 'audience';
-    $existing_terms = \Drupal::entityTypeManager()
-      ->getStorage('taxonomy_term')
-      ->loadByProperties(['vid' => $vid]);
-
-    $existing_term_names = [];
-    foreach ($existing_terms as $term) {
-      $existing_term_names[$term->id()] = $term->getName();
-    }
-
-    foreach ($terms as $term_data) {
-      $existing_term = array_search($term_data['name'], $existing_term_names);
-      if ($existing_term === false) {
-        $term = Term::create([
-          'vid' => $vid,
-          'name' => $term_data['name'],
-        ]);
-        $term->save();
-      }
-    }
-  }
-}
-
-namespace Drupal\Tests\your_module\Functional;
-
-use Drupal\Tests\BrowserTestBase;
-use Drupal\taxonomy\Entity\Term;
-
-/**
- * Tests the audience taxonomy term update.
+ * Provides a 'Taxonomy Terms' Block.
  *
- * @group your_module
+ * @Block(
+ *   id = "taxonomy_terms_block",
+ *   admin_label = @Translation("Taxonomy Terms Block"),
+ * )
  */
-class YourModuleTest extends BrowserTestBase {
-
-  protected static $modules = ['your_module', 'taxonomy'];
+class TaxonomyTermsBlock extends BlockBase implements ContainerFactoryPluginInterface {
 
   /**
-   * Test audience taxonomy term creation.
+   * The entity type manager.
+   *
+   * @var \Drupal\Core\Entity\EntityTypeManagerInterface
    */
-  public function testAudienceTermUpdate() {
-    // Run the update hook.
-    $this->container->get('module_handler')->install(['your_module']);
-    \Drupal::service('kernel')->rebuildContainer();
-    drupal_static_reset();
-    \Drupal::service('database')->query("DELETE FROM cache_config");
+  protected $entityTypeManager;
 
-    // Verify terms exist in the database.
-    $terms = \Drupal::entityTypeManager()
-      ->getStorage('taxonomy_term')
-      ->loadByProperties(['vid' => 'audience']);
+  /**
+   * Constructs a new TaxonomyTermsBlock.
+   *
+   * @param array $configuration
+   *   A configuration array containing information about the plugin instance.
+   * @param string $plugin_id
+   *   The plugin ID for the block.
+   * @param mixed $plugin_definition
+   *   The plugin implementation definition.
+   * @param \Drupal\Core\Entity\EntityTypeManagerInterface $entity_type_manager
+   *   The entity type manager.
+   */
+  public function __construct(array $configuration, $plugin_id, $plugin_definition, EntityTypeManagerInterface $entity_type_manager) {
+    parent::__construct($configuration, $plugin_id, $plugin_definition);
+    $this->entityTypeManager = $entity_type_manager;
+  }
 
-    $this->assertNotEmpty($terms, 'Audience terms exist in the database.');
+  /**
+   * {@inheritdoc}
+   */
+  public static function create(ContainerInterface $container, array $configuration, $plugin_id, $plugin_definition) {
+    return new static(
+      $configuration,
+      $plugin_id,
+      $plugin_definition,
+      $container->get('entity_type.manager')
+    );
+  }
 
-    $expected_terms = ['General Public', 'Graduate Students', 'Academic Researchers', 'Industry Professionals'];
-    $actual_terms = array_map(fn($t) => $t->getName(), $terms);
+  /**
+   * {@inheritdoc}
+   */
+  public function build() {
+    $vocabulary = 'your_vocabulary_machine_name'; // Change this to your vocabulary machine name.
+    $terms = $this->entityTypeManager->getStorage('taxonomy_term')->loadByProperties(['vid' => $vocabulary]);
+    
+    $term_list = [];
+    $index = 0;
 
-    foreach ($expected_terms as $term_name) {
-      $this->assertTrue(in_array($term_name, $actual_terms), "Term '{$term_name}' exists.");
+    foreach ($terms as $term) {
+      $term_list[] = [
+        'name' => $term->getName(),
+        'class' => 'term-class-' . $index,
+      ];
+      $index++;
     }
+
+    return [
+      '#theme' => 'taxonomy_terms_block',
+      '#terms' => $term_list,
+      '#attached' => [
+        'library' => ['custom_taxonomy_block/styles'],
+      ],
+    ];
   }
 }
-
-public function testAudienceTermUpdate() {
-  // Install the module properly.
-  \Drupal::service('module_installer')->install(['your_module']);
-
-  // Manually set the config override for the test environment.
-  $configFactory = \Drupal::service('config.factory.mutable');
-  $configFactory->set('audience_terms', [
-    'audience_terms' => [
-      ['id' => 'audience_1', 'name' => 'Corporate Employees'],
-      ['id' => 'audience_2', 'name' => 'University Faculty'],
-      ['id' => 'audience_3', 'name' => 'Independent Consultants'],
-      ['id' => 'audience_4', 'name' => 'Government Officials'],
-    ],
-  ]);
-  $configFactory->save('audience_terms');
-
-  // Clear config cache.
-  \Drupal::service('cache.config')->deleteAll();
-
-  // Rebuild the container.
-  \Drupal::service('kernel')->rebuildContainer();
-  drupal_static_reset();
-
-  // Run the update hook.
-  \Drupal::service('module_handler')->invoke('your_module', 'update_9001');
-
-  // Verify terms exist in the database.
-  $terms = \Drupal::entityTypeManager()
-    ->getStorage('taxonomy_term')
-    ->loadByProperties(['vid' => 'audience']);
-
-  $this->assertNotEmpty($terms, 'Audience terms exist in the database.');
-
-  // Expected terms from the overridden config (new site scenario).
-  $expected_terms = [
-    'Corporate Employees',
-    'University Faculty',
-    'Independent Consultants',
-    'Government Officials',
-  ];
-
-  $actual_terms = array_map(fn($t) => $t->getName(), $terms);
-
-  // Ensure all expected terms are present.
-  foreach ($expected_terms as $term_name) {
-    $this->assertTrue(in_array($term_name, $actual_terms), "Term '{$term_name}' exists.");
-  }
-
-  // Ensure no unexpected terms exist.
-  $this->assertCount(count($expected_terms), $terms, 'Only expected terms exist.');
-}
-
