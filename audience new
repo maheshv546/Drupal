@@ -47,3 +47,56 @@ function MY_THEME_preprocess_views_view(&$variables) {
     ];
   }
 }
+use Drupal\taxonomy\Entity\Term;
+
+/**
+ * Implements hook_preprocess_HOOK() for views_view__fullcalendar.
+ */
+function MY_THEME_preprocess_views_view(&$variables) {
+  if ($variables['view']->id() === 'fullcalendar') {
+    $vocabulary = 'event_type'; // Replace with actual vocabulary machine name
+
+    // Load all terms from the vocabulary
+    $terms = \Drupal::entityTypeManager()
+      ->getStorage('taxonomy_term')
+      ->loadByProperties(['vid' => $vocabulary]);
+
+    // Sort terms by weight
+    usort($terms, function (Term $a, Term $b) {
+      return $a->getWeight() <=> $b->getWeight();
+    });
+
+    // Build event type legend render array
+    $legend = [
+      '#type' => 'container',
+      '#attributes' => ['class' => ['event-type-legend']],
+      'items' => [],
+    ];
+
+    foreach ($terms as $term) {
+      $legend['items'][] = [
+        '#type' => 'html_tag',
+        '#tag' => 'span',
+        '#attributes' => ['class' => ['event-type', 'weight-' . $term->getWeight()]],
+        '#value' => $term->label(),
+      ];
+    }
+
+    // Modify the title as a render array
+    $title_markup = [
+      '#type' => 'markup',
+      '#markup' => $variables['title'],
+      '#allowed_tags' => ['div', 'span', 'strong', 'em'],
+    ];
+
+    // Attach the title and legend together
+    $variables['#pre_render'][] = function ($element) use ($title_markup, $legend) {
+      return [
+        '#type' => 'container',
+        '#attributes' => ['class' => ['fullcalendar-title-wrapper']],
+        'title' => $title_markup,
+        'legend' => $legend,
+      ];
+    };
+  }
+}
