@@ -81,7 +81,54 @@ function mymodule_preprocess_views_view(array &$variables): void {
   background-color: #f3f3f3;
   font-size: 12px;
 }
+/**
+ * Implements template_preprocess_views_view__fullcalendar().
+ */
+function mymodule_preprocess_views_view__fullcalendar(array &$variables): void {
+  // Ensure we are modifying the correct FullCalendar view.
+  if ($variables['view']->id() === 'fullcalendar' && $variables['view']->current_display === 'block_1') {
 
+    // Load all terms in the vocabulary and create an indexed list.
+    $vocabulary = 'event_categories'; // Change to your vocabulary machine name.
+    $terms = \Drupal::entityTypeManager()
+      ->getStorage('taxonomy_term')
+      ->loadByProperties(['vid' => $vocabulary]);
+
+    // Create an indexed array for term order.
+    $term_order = [];
+    foreach ($terms as $index => $term) {
+      $term_order[$term->id()] = $index; // Index terms based on their order.
+    }
+
+    // Process view results.
+    foreach ($variables['view']->result as $index => $row) {
+      if (isset($row->_entity) && $row->_entity instanceof \Drupal\node\NodeInterface) {
+        $event = $row->_entity;
+
+        if ($event->hasField('field_event_category') && !$event->get('field_event_category')->isEmpty()) {
+          $event_terms = $event->get('field_event_category')->referencedEntities();
+
+          $sorted_terms = [];
+          foreach ($event_terms as $term) {
+            $tid = $term->id();
+            if (isset($term_order[$tid])) {
+              $sorted_terms[$term_order[$tid]] = [
+                'label' => $term->getName(),
+                'class' => "taxonomy-term-" . $tid . "-" . strtolower(str_replace(' ', '-', $term->getName())),
+              ];
+            }
+          }
+
+          // Sort terms by their predefined index order.
+          ksort($sorted_terms);
+
+          // Attach sorted taxonomy terms to the row.
+          $variables['rows'][$index]['event_terms'] = array_values($sorted_terms);
+        }
+      }
+    }
+  }
+}
 .taxonomy-term-1-workshop { background-color: #ffcc00; }
 .taxonomy-term-2-webinar { background-color: #0099ff; }
 .taxonomy-term-3-conference { background-color: #66cc66; }
