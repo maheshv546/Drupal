@@ -1,35 +1,57 @@
-<div class="fullcalendar-legend--section"><h3>Event type</h3>
-<ul>
-<li style="--dot-color: #bfdee0; --text-colors: #2e2e2e" class="fc-display--block">Communication</li>
-<li style="--dot-color: #f9e5c1; --text-colors: #2e2e2e" class="fc-display--block">Convention</li>
-<li style="--dot-color: #d2dec5; --text-colors: #2e2e2e" class="fc-display--block">Deadline</li>
-<li style="--dot-color: #f7d3c7; --text-colors: #2e2e2e" class="fc-display--block">Holiday</li>
-<li style="--dot-color: #e3cada; --text-colors: #2e2e2e" class="fc-display--block">Webinar</li>
-</ul>
-</div>
+/**
+ * Implements hook_views_default_views_alter().
+ */
+function MYMODULE_views_default_views_alter(array &$views) {
+  // Define the specific views where the legend display should be set to "Block".
+  $target_views = [
+    'my_fullcalendar_view', // Replace with your view's machine name.
+    'another_calendar_view',
+  ];
 
-
-.fullcalendar-legend--section {
-  h3 {
-    margin-bottom: 0.5rem;
+  foreach ($views as $view_id => $view) {
+    // Check if this is one of the targeted views.
+    if (in_array($view_id, $target_views, TRUE)) {
+      foreach ($view->display as $display_id => $display) {
+        // Ensure it's a FullCalendar display.
+        if (!empty($display->display_options['style']['type']) && $display->display_options['style']['type'] === 'fullcalendar') {
+          // Set the legend display style to "Block".
+          $view->display[$display_id]->display_options['legend_display_style'] = 'block';
+        }
+      }
+    }
   }
+}
 
-  ul {
-    list-style: none;
-    padding: 0;
-    display: flex; // Align items horizontally
-    gap: 1rem; // Add spacing between items
-    flex-wrap: wrap; // Allow wrapping on smaller screens
-  }
+/**
+ * Update specific FullCalendar views to set legend display to "Block".
+ */
+function MYMODULE_update_9002() {
+  $views_storage = \Drupal::entityTypeManager()->getStorage('view');
+  $views = $views_storage->loadMultiple();
 
-  li {
-    display: flex;
-    align-items: center;
-    padding: 0.5rem 1rem;
-    border-radius: 4px;
-    background-color: var(--dot-color);
-    color: var(--text-colors);
-    font-weight: 600;
-    white-space: nowrap; // Prevent breaking text in small spaces
+  // Define the views to update.
+  $target_views = [
+    'my_fullcalendar_view', // Replace with your view's machine name.
+    'another_calendar_view',
+  ];
+
+  foreach ($views as $view_id => $view) {
+    // Only update if the view is in our target list.
+    if (in_array($view_id, $target_views, TRUE)) {
+      $changed = FALSE;
+
+      foreach ($view->get('display') as $display_id => $display) {
+        if (!empty($display['display_options']['style']['type']) && $display['display_options']['style']['type'] === 'fullcalendar') {
+          // Set legend display style to "Block".
+          $view->set('display.' . $display_id . '.display_options.legend_display_style', 'block');
+          $changed = TRUE;
+        }
+      }
+
+      // Save the updated view if changes were made.
+      if ($changed) {
+        $view->save();
+      }
+    }
   }
 }
