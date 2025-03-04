@@ -7,3 +7,29 @@
 <li style="--dot-color: #e3cada; --text-colors: #2e2e2e" class="fc-display--block">Webinar</li>
 </ul>
 </div>
+
+
+.fullcalendar-legend--section {
+  h3 {
+    margin-bottom: 0.5rem;
+  }
+
+  ul {
+    list-style: none;
+    padding: 0;
+    display: flex; // Align items horizontally
+    gap: 1rem; // Add spacing between items
+    flex-wrap: wrap; // Allow wrapping on smaller screens
+  }
+
+  li {
+    display: flex;
+    align-items: center;
+    padding: 0.5rem 1rem;
+    border-radius: 4px;
+    background-color: var(--dot-color);
+    color: var(--text-colors);
+    font-weight: 600;
+    white-space: nowrap; // Prevent breaking text in small spaces
+  }
+}
