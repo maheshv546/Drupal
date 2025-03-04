@@ -9,14 +9,18 @@ function mymodule_preprocess_views_view(&$variables) {
     \Drupal::logger('mymodule')->notice('Preprocessing FullCalendar Legend.');
 
     if (!empty($variables['rows'])) {
-      foreach ($variables['rows'] as $index => &$row) {
-        if (!empty($row['#content']['#title'])) {
-          // Extract the taxonomy term name.
-          $term_name = strtolower(str_replace(' ', '-', $row['#content']['#title']));
+      foreach ($variables['rows'] as $index => $row) {
+        if (is_object($row) && method_exists($row, 'getTitle')) {
+          // Extract the taxonomy term name safely.
+          $term_name = strtolower(str_replace(' ', '-', $row->getTitle()));
 
-          // Add a custom class based on the term name.
-          $row['#attributes']['class'][] = 'legend-term-' . $term_name;
-          $row['#attributes']['class'][] = 'colour-palette-' . $index;
+          // Ensure attributes array exists before modifying.
+          if (!isset($row->attributes)) {
+            $row->attributes = new \Drupal\Core\Template\Attribute();
+          }
+
+          // Add custom classes based on the term.
+          $row->attributes->addClass(['legend-term-' . $term_name, 'colour-palette-' . $index]);
         }
       }
     }
