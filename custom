@@ -1,83 +1,33 @@
-function mymodule_update_9001() {
-  \Drupal::configFactory()->getEditable('fullcalendar.settings')
-    ->set('fullcalendar_legend_display_style', 'block')
-    ->save();
-}
+namespace Drupal\mymodule\Plugin\FullCalendar;
 
-function mymodule_form_views_exposed_form_alter(&$form, \Drupal\Core\Form\FormStateInterface $form_state, $form_id) {
-  if (isset($form['fullcalendar_legend_display_style'])) {
-    $form['fullcalendar_legend_display_style']['#default_value'] = 'block';
-  }
-}
+use Drupal\fullcalendar_legend\Plugin\FullCalendar\Legend;
+use Drupal\taxonomy\Entity\Term;
 
-namespace Drupal\mymodule\EventSubscriber;
+/**
+ * Custom FullCalendar Legend override.
+ */
+class CustomLegend extends Legend {
 
-use Symfony\Component\EventDispatcher\EventSubscriberInterface;
-use Drupal\views\Event\ViewsPreRenderEvent;
-use Drupal\views\Views;
+  /**
+   * {@inheritdoc}
+   */
+  protected function generateLegendList(array $terms) {
+    $legend_list = parent::generateLegendList($terms);
 
-class FullCalendarLegendSubscriber implements EventSubscriberInterface {
-
-  public static function getSubscribedEvents() {
-    return [
-      ViewsPreRenderEvent::class => 'onViewsPreRender',
-    ];
-  }
-
-  public function onViewsPreRender(ViewsPreRenderEvent $event) {
-    $view = $event->getView();
-    
-    if ($view->id() === 'fullcalendar_legend') {
-      $view->display_handler->overrideOption('fullcalendar_legend_display_style', 'block');
+    // Add custom classes to legend terms.
+    foreach ($legend_list as $index => &$item) {
+      if (!empty($item['#term_id'])) {
+        $item['#attributes']['class'][] = 'colour-palette-' . $index;
+      }
     }
+
+    return $legend_list;
   }
 }
+
 services:
-  mymodule.fullcalendar_legend_subscriber:
-    class: 'Drupal\mymodule\EventSubscriber\FullCalendarLegendSubscriber'
+  mymodule.fullcalendar_legend:
+    class: Drupal\mymodule\Plugin\FullCalendar\CustomLegend
+    arguments: ['@entity_type.manager']
     tags:
-      - { name: event_subscriber }
-
-function YOUR_THEME_preprocess_views_view(&$variables) {
-  if ($variables['view']->id() === 'fullcalendar_legend') {
-    // Ensure legend items exist.
-    if (!empty($variables['rows'])) {
-      foreach ($variables['rows'] as $index => &$row) {
-        // Add a custom class "colour-palette-$index" to each legend item.
-        $row['#attributes']['class'][] = 'colour-palette-' . $index;
-      }
-    }
-    
-    // Ensure the wrapper gets a flex container class.
-    $variables['attributes']['class'][] = 'fullcalendar-legend-horizontal';
-  }
-}
-
-.fullcalendar-legend-horizontal {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-}
-
-.fullcalendar-legend-horizontal .views-row {
-  display: inline-block;
-  padding: 5px 10px;
-  border-radius: 4px;
-  color: #fff;
-}
-function mymodule_views_pre_render(\Drupal\views\ViewExecutable &$view) {
-  if ($view->id() === 'fullcalendar_legend') {
-    foreach ($view->result as $index => $row) {
-      if (isset($row->_entity)) {
-        // Add a class "colour-palette-$index" to each legend item.
-        $row->_attributes['class'][] = 'colour-palette-' . $index;
-      }
-    }
-
-    // Add a class to the legend wrapper to ensure it displays horizontally.
-    $view->element['#attributes']['class'][] = 'fullcalendar-legend-horizontal';
-  }
-}
-.colour-palette-0 { background-color: #ff0000; } /* Red */
-.colour-palette-1 { background-color: #00ff00; } /* Green */
-.colour-palette-2 { background-color: #0000ff; } /* Blue */
+      - { name: fullcalendar_legend }
