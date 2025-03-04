@@ -65,7 +65,19 @@ function YOUR_THEME_preprocess_views_view(&$variables) {
   border-radius: 4px;
   color: #fff;
 }
+function mymodule_views_pre_render(\Drupal\views\ViewExecutable &$view) {
+  if ($view->id() === 'fullcalendar_legend') {
+    foreach ($view->result as $index => $row) {
+      if (isset($row->_entity)) {
+        // Add a class "colour-palette-$index" to each legend item.
+        $row->_attributes['class'][] = 'colour-palette-' . $index;
+      }
+    }
 
+    // Add a class to the legend wrapper to ensure it displays horizontally.
+    $view->element['#attributes']['class'][] = 'fullcalendar-legend-horizontal';
+  }
+}
 .colour-palette-0 { background-color: #ff0000; } /* Red */
 .colour-palette-1 { background-color: #00ff00; } /* Green */
 .colour-palette-2 { background-color: #0000ff; } /* Blue */
