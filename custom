@@ -3,3 +3,9 @@ function mymodule_update_9001() {
     ->set('fullcalendar_legend_display_style', 'block')
     ->save();
 }
+
+function mymodule_form_views_exposed_form_alter(&$form, \Drupal\Core\Form\FormStateInterface $form_state, $form_id) {
+  if (isset($form['fullcalendar_legend_display_style'])) {
+    $form['fullcalendar_legend_display_style']['#default_value'] = 'block';
+  }
+}
