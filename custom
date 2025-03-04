@@ -1,28 +1,4 @@
 /**
- * Implements hook_views_default_views_alter().
- */
-function MYMODULE_views_default_views_alter(array &$views) {
-  // Define the specific views where the legend display should be set to "Block".
-  $target_views = [
-    'my_fullcalendar_view', // Replace with your view's machine name.
-    'another_calendar_view',
-  ];
-
-  foreach ($views as $view_id => $view) {
-    // Check if this is one of the targeted views.
-    if (in_array($view_id, $target_views, TRUE)) {
-      foreach ($view->display as $display_id => $display) {
-        // Ensure it's a FullCalendar display.
-        if (!empty($display->display_options['style']['type']) && $display->display_options['style']['type'] === 'fullcalendar') {
-          // Set the legend display style to "Block".
-          $view->display[$display_id]->display_options['legend_display_style'] = 'block';
-        }
-      }
-    }
-  }
-}
-
-/**
  * Update specific FullCalendar views to set legend display to "Block".
  */
 function MYMODULE_update_9002() {
@@ -36,21 +12,25 @@ function MYMODULE_update_9002() {
   ];
 
   foreach ($views as $view_id => $view) {
-    // Only update if the view is in our target list.
     if (in_array($view_id, $target_views, TRUE)) {
       $changed = FALSE;
+      $displays = $view->get('display');
 
-      foreach ($view->get('display') as $display_id => $display) {
+      foreach ($displays as $display_id => $display) {
         if (!empty($display['display_options']['style']['type']) && $display['display_options']['style']['type'] === 'fullcalendar') {
-          // Set legend display style to "Block".
-          $view->set('display.' . $display_id . '.display_options.legend_display_style', 'block');
-          $changed = TRUE;
+          // Ensure the legend_display_style option exists.
+          if (!isset($display['display_options']['legend_display_style']) || $display['display_options']['legend_display_style'] !== 'block') {
+            $displays[$display_id]['display_options']['legend_display_style'] = 'block';
+            $changed = TRUE;
+          }
         }
       }
 
-      // Save the updated view if changes were made.
+      // Apply the changes and save the view.
       if ($changed) {
+        $view->set('display', $displays);
         $view->save();
+        \Drupal::logger('MYMODULE')->notice('Updated FullCalendar legend display style for @view.', ['@view' => $view_id]);
       }
     }
   }
