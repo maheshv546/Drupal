@@ -37,3 +37,35 @@ services:
     class: 'Drupal\mymodule\EventSubscriber\FullCalendarLegendSubscriber'
     tags:
       - { name: event_subscriber }
+
+function YOUR_THEME_preprocess_views_view(&$variables) {
+  if ($variables['view']->id() === 'fullcalendar_legend') {
+    // Ensure legend items exist.
+    if (!empty($variables['rows'])) {
+      foreach ($variables['rows'] as $index => &$row) {
+        // Add a custom class "colour-palette-$index" to each legend item.
+        $row['#attributes']['class'][] = 'colour-palette-' . $index;
+      }
+    }
+    
+    // Ensure the wrapper gets a flex container class.
+    $variables['attributes']['class'][] = 'fullcalendar-legend-horizontal';
+  }
+}
+
+.fullcalendar-legend-horizontal {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.fullcalendar-legend-horizontal .views-row {
+  display: inline-block;
+  padding: 5px 10px;
+  border-radius: 4px;
+  color: #fff;
+}
+
+.colour-palette-0 { background-color: #ff0000; } /* Red */
+.colour-palette-1 { background-color: #00ff00; } /* Green */
+.colour-palette-2 { background-color: #0000ff; } /* Blue */
