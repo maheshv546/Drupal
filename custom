@@ -9,3 +9,31 @@ function mymodule_form_views_exposed_form_alter(&$form, \Drupal\Core\Form\FormSt
     $form['fullcalendar_legend_display_style']['#default_value'] = 'block';
   }
 }
+
+namespace Drupal\mymodule\EventSubscriber;
+
+use Symfony\Component\EventDispatcher\EventSubscriberInterface;
+use Drupal\views\Event\ViewsPreRenderEvent;
+use Drupal\views\Views;
+
+class FullCalendarLegendSubscriber implements EventSubscriberInterface {
+
+  public static function getSubscribedEvents() {
+    return [
+      ViewsPreRenderEvent::class => 'onViewsPreRender',
+    ];
+  }
+
+  public function onViewsPreRender(ViewsPreRenderEvent $event) {
+    $view = $event->getView();
+    
+    if ($view->id() === 'fullcalendar_legend') {
+      $view->display_handler->overrideOption('fullcalendar_legend_display_style', 'block');
+    }
+  }
+}
+services:
+  mymodule.fullcalendar_legend_subscriber:
+    class: 'Drupal\mymodule\EventSubscriber\FullCalendarLegendSubscriber'
+    tags:
+      - { name: event_subscriber }
