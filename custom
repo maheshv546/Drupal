@@ -85,3 +85,56 @@ fullcalendar_legend.settings:
     heading_level:
       type: string
       label: "Heading Level"
+
+views.view.fullcalendar:
+  mapping:
+    display:
+      type: mapping
+      label: "Display settings"
+      mapping:
+        default:
+          type: mapping
+          label: "Default display"
+          mapping:
+            display_options:
+              type: mapping
+              label: "Display options"
+              mapping:
+                header:
+                  type: sequence
+                  label: "Header options"
+                  sequence:
+                    - type: mapping
+                      label: "FullCalendar Legend Header"
+                      mapping:
+                        fullcalendar_legend:
+                          type: mapping
+                          label: "FullCalendar Legend Settings"
+                          mapping:
+                            id:
+                              type: string
+                              label: "Legend ID"
+                            table:
+                              type: string
+                              label: "Table"
+                            field:
+                              type: string
+                              label: "Field"
+                            relationship:
+                              type: string
+                              label: "Relationship"
+                            group_type:
+                              type: string
+                              label: "Group Type"
+                            admin_label:
+                              type: string
+                              label: "Admin Label"
+                            plugin_id:
+                              type: string
+                              label: "Plugin ID"
+                            empty:
+                              type: boolean
+                              label: "Allow Empty"
+                            heading_level:
+                              type: string
+                              label: "Heading Level"
