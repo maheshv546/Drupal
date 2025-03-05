@@ -35,3 +35,9 @@ function MYMODULE_update_9002() {
     }
   }
 }
+function mytheme_preprocess_fullcalendar_legend(&$variables) {
+  foreach ($variables['items'] as &$item) {
+    // Remove inline styles.
+    unset($item['attributes']['style']);
+  }
+}
