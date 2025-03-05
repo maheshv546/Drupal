@@ -41,3 +41,15 @@ function mytheme_preprocess_fullcalendar_legend(&$variables) {
     unset($item['attributes']['style']);
   }
 }
+
+header:
+        fullcalendar_legend:
+          id: fullcalendar_legend
+          table: views
+          field: fullcalendar_legend
+          relationship: none
+          group_type: group
+          admin_label: ''
+          plugin_id: fullcalendar_legend
+          empty: false
+          heading_level: h3
