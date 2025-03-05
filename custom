@@ -1,91 +1,3 @@
-/**
- * Update specific FullCalendar views to set legend display to "Block".
- */
-function MYMODULE_update_9002() {
-  $views_storage = \Drupal::entityTypeManager()->getStorage('view');
-  $views = $views_storage->loadMultiple();
-
-  // Define the views to update.
-  $target_views = [
-    'my_fullcalendar_view', // Replace with your view's machine name.
-    'another_calendar_view',
-  ];
-
-  foreach ($views as $view_id => $view) {
-    if (in_array($view_id, $target_views, TRUE)) {
-      $changed = FALSE;
-      $displays = $view->get('display');
-
-      foreach ($displays as $display_id => $display) {
-        if (!empty($display['display_options']['style']['type']) && $display['display_options']['style']['type'] === 'fullcalendar') {
-          // Ensure the legend_display_style option exists.
-          if (!isset($display['display_options']['legend_display_style']) || $display['display_options']['legend_display_style'] !== 'block') {
-            $displays[$display_id]['display_options']['legend_display_style'] = 'block';
-            $changed = TRUE;
-          }
-        }
-      }
-
-      // Apply the changes and save the view.
-      if ($changed) {
-        $view->set('display', $displays);
-        $view->save();
-        \Drupal::logger('MYMODULE')->notice('Updated FullCalendar legend display style for @view.', ['@view' => $view_id]);
-      }
-    }
-  }
-}
-function mytheme_preprocess_fullcalendar_legend(&$variables) {
-  foreach ($variables['items'] as &$item) {
-    // Remove inline styles.
-    unset($item['attributes']['style']);
-  }
-}
-
-header:
-        fullcalendar_legend:
-          id: fullcalendar_legend
-          table: views
-          field: fullcalendar_legend
-          relationship: none
-          group_type: group
-          admin_label: ''
-          plugin_id: fullcalendar_legend
-          empty: false
-          heading_level: h3
-
-fullcalendar_legend.settings:
-  type: config_object
-  label: "FullCalendar Legend Settings"
-  mapping:
-    id:
-      type: string
-      label: "Legend ID"
-    table:
-      type: string
-      label: "Table"
-    field:
-      type: string
-      label: "Field"
-    relationship:
-      type: string
-      label: "Relationship"
-    group_type:
-      type: string
-      label: "Group Type"
-    admin_label:
-      type: string
-      label: "Admin Label"
-    plugin_id:
-      type: string
-      label: "Plugin ID"
-    empty:
-      type: boolean
-      label: "Allow Empty"
-    heading_level:
-      type: string
-      label: "Heading Level"
-
 views.view.fullcalendar:
   mapping:
     display:
@@ -105,8 +17,18 @@ views.view.fullcalendar:
                   label: "Header options"
                   sequence:
                     - type: mapping
-                      label: "FullCalendar Legend Header"
+                      label: "Header Item"
                       mapping:
+                        plugin_id:
+                          type: string
+                          label: "Plugin ID"
+                        admin_label:
+                          type: string
+                          label: "Admin Label"
+                        empty:
+                          type: boolean
+                          label: "Allow Empty"
+                        # FullCalendar Legend-specific fields (conditionally recognized by plugin_id)
                         fullcalendar_legend:
                           type: mapping
                           label: "FullCalendar Legend Settings"
@@ -126,15 +48,6 @@ views.view.fullcalendar:
                             group_type:
                               type: string
                               label: "Group Type"
-                            admin_label:
-                              type: string
-                              label: "Admin Label"
-                            plugin_id:
-                              type: string
-                              label: "Plugin ID"
-                            empty:
-                              type: boolean
-                              label: "Allow Empty"
                             heading_level:
                               type: string
                               label: "Heading Level"
