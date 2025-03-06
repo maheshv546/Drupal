@@ -1,4 +1,4 @@
-views.view.fullcalendar:
+views.view.aba_events:
   mapping:
     display:
       type: mapping
@@ -28,26 +28,17 @@ views.view.fullcalendar:
                         empty:
                           type: boolean
                           label: "Allow Empty"
-                        # FullCalendar Legend-specific fields (conditionally recognized by plugin_id)
                         fullcalendar_legend:
                           type: mapping
                           label: "FullCalendar Legend Settings"
                           mapping:
-                            id:
-                              type: string
-                              label: "Legend ID"
-                            table:
-                              type: string
-                              label: "Table"
-                            field:
-                              type: string
-                              label: "Field"
-                            relationship:
-                              type: string
-                              label: "Relationship"
-                            group_type:
-                              type: string
-                              label: "Group Type"
                             heading_level:
                               type: string
                               label: "Heading Level"
+                              allowed_values:
+                                - h1
+                                - h2
+                                - h3
+                                - h4
+                                - h5
+                                - h6
