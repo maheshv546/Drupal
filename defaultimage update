@@ -1,0 +1,74 @@
+services:
+  custom_twig_filters.twig_extension:
+    class: Drupal\custom_twig_filters\TwigExtension\CustomTwigFilters
+    arguments: ['@file_system', '@config.factory', '@site.path']
+    tags:
+      - { name: twig.extension }
+
+<?php
+
+namespace Drupal\custom_twig_filters\TwigExtension;
+
+use Twig\Extension\AbstractExtension;
+use Twig\TwigFilter;
+use Drupal\Core\File\FileSystemInterface;
+use Drupal\Core\Config\ConfigFactoryInterface;
+use Drupal\Core\Site\Settings;
+
+/**
+ * Provides custom Twig filters for overriding images in multisite.
+ */
+class CustomTwigFilters extends AbstractExtension {
+
+  protected $fileSystem;
+  protected $configFactory;
+  protected $sitePath;
+
+  /**
+   * Constructor.
+   */
+  public function __construct(FileSystemInterface $file_system, ConfigFactoryInterface $config_factory, $site_path) {
+    $this->fileSystem = $file_system;
+    $this->configFactory = $config_factory;
+    $this->sitePath = $site_path;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function getFilters() {
+    return [
+      new TwigFilter('multisite_image', [$this, 'getMultisiteImage']),
+    ];
+  }
+
+  /**
+   * Checks if a multisite-specific image exists, otherwise returns default.
+   *
+   * @param string $default_image
+   *   The default image path.
+   *
+   * @return string
+   *   The overridden image path if available, otherwise the default.
+   */
+  public function getMultisiteImage($default_image) {
+    // Define the multisite-specific override directory.
+    $override_path = 'sites/' . $this->sitePath . '/files/custom_images/';
+
+    // Extract the filename from the default image.
+    $filename = basename($default_image);
+
+    // Check if the override file exists.
+    $override_file = $override_path . $filename;
+
+    if (file_exists($this->fileSystem->realpath($override_file))) {
+      return '/' . $override_file;
+    }
+
+    // Return the default image if no override is found.
+    return $default_image;
+  }
+
+}
+
+<img src="{{ '/themes/custom/mytheme/images/default.jpg' | multisite_image }}" alt="Custom Image">
