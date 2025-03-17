@@ -1,53 +1,19 @@
-<?php
+public function testSearchPageDefaultImage() {
+  // Ensure the "Search" module is enabled.
+  $this->assertTrue(\Drupal::moduleHandler()->moduleExists('search'), 'Search module is enabled.');
 
-namespace Drupal\Tests\my_module\Functional;
+  // Create and log in a user.
+  $this->drupalLogin($this->user);
 
-use Drupal\Tests\BrowserTestBase;
+  // Index the content to make sure search results are available.
+  $this->container->get('search.index')->indexAll();
 
-/**
- * Tests the custom Twig extension for theme image paths.
- *
- * @group my_module
- */
-class MyCustomTwigTest extends BrowserTestBase {
+  // Visit the search page.
+  $this->drupalGet('/search');
 
-  /**
-   * {@inheritdoc}
-   */
-  protected static $modules = ['node', 'block', 'my_module'];
+  // Define the expected default image path.
+  $expected_fallback_image = '/sites/default/files/default-image.jpg';
 
-  /**
-   * A user with permissions to view content.
-   */
-  protected $user;
-
-  /**
-   * {@inheritdoc}
-   */
-  protected function setUp(): void {
-    parent::setUp();
-
-    // Create and log in a user.
-    $this->user = $this->drupalCreateUser(['access content']);
-    $this->drupalLogin($this->user);
-  }
-
-  /**
-   * Tests if the Twig filter correctly generates the theme image path.
-   */
-  public function testTwigThemeImageFilter() {
-    // Create a test page with the Twig template applied.
-    $this->drupalPlaceBlock('system_main_block');
-
-    // Visit the homepage.
-    $this->drupalGet('<front>');
-
-    // Assert that the custom Twig filter correctly generates the theme image path.
-    $theme_path = '/themes/custom/' . \Drupal::service('theme_handler')->getDefault();
-    $expected_image_url = $theme_path . '/assets/logo.png';
-
-    // Check if the image URL is present in the rendered page.
-    $this->assertSession()->elementExists('css', 'img[src="' . $expected_image_url . '"]');
-  }
-
+  // Check if the fallback image appears in search results.
+  $this->assertSession()->elementExists('css', 'img[src="' . $expected_fallback_image . '"]');
 }
