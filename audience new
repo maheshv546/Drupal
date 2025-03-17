@@ -56,3 +56,56 @@ class ThemeImageTwigFilterTest extends BrowserTestBase {
     $this->assertSession()->responseContains($theme_path);
   }
 }
+
+<?php
+
+namespace Drupal\another_module\Controller;
+
+use Drupal\Core\Controller\ControllerBase;
+use Symfony\Component\DependencyInjection\ContainerInterface;
+use Twig\Environment;
+
+/**
+ * Controller for rendering a page with a theme image.
+ */
+class AnotherModuleController extends ControllerBase {
+
+  /**
+   * The Twig environment service.
+   *
+   * @var \Twig\Environment
+   */
+  protected $twig;
+
+  /**
+   * Constructs the controller.
+   *
+   * @param \Twig\Environment $twig
+   *   The Twig environment service.
+   */
+  public function __construct(Environment $twig) {
+    $this->twig = $twig;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public static function create(ContainerInterface $container) {
+    return new static(
+      $container->get('twig')
+    );
+  }
+
+  /**
+   * Renders a page with the theme image.
+   */
+  public function renderPage() {
+    // Get the image path using the custom Twig filter.
+    $image_path = $this->twig->getFilter('get_theme_image')->getCallable()('custom-image.jpg', 'another_module');
+
+    return [
+      '#theme' => 'custom_template',
+      '#image_path' => $image_path,
+    ];
+  }
+}
