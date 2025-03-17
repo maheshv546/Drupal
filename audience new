@@ -17,3 +17,42 @@ public function testSearchPageDefaultImage() {
   // Check if the fallback image appears in search results.
   $this->assertSession()->elementExists('css', 'img[src="' . $expected_fallback_image . '"]');
 }
+
+<?php
+
+namespace Drupal\Tests\my_module\Functional;
+
+use Drupal\Tests\BrowserTestBase;
+
+/**
+ * Tests the custom Twig filter for overriding the default image.
+ *
+ * @group my_module
+ */
+class ThemeImageTwigFilterTest extends BrowserTestBase {
+
+  protected static $modules = ['my_module', 'twig_tweak', 'theme_test'];
+
+  /**
+   * Tests if the overridden image is being loaded.
+   */
+  public function testThemeImageOverride() {
+    $this->drupalLogin($this->createUser([], NULL, TRUE));
+
+    // Create a test page with the Twig filter.
+    $node = $this->drupalCreateNode([
+      'type' => 'page',
+      'title' => 'Test Image',
+      'body' => [
+        'value' => '<img src="{{ "default-image.jpg"|get_theme_image }}" alt="Test Image">',
+        'format' => 'full_html',
+      ],
+    ]);
+
+    $this->drupalGet($node->toUrl());
+
+    // Check if the image is overridden correctly.
+    $theme_path = '/' . \Drupal::theme()->getActiveTheme()->getPath() . '/images/default-image.jpg';
+    $this->assertSession()->responseContains($theme_path);
+  }
+}
