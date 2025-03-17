@@ -1,102 +1,53 @@
-$terms = $event->get('field_event_type')->getValue();
-usort($terms, fn($a, $b) => $a['weight'] <=> $b['weight']);
+<?php
 
-$sorted_terms = [];
-foreach ($terms as $term) {
-    $sorted_terms[] = \Drupal::entityTypeManager()
-        ->getStorage('taxonomy_term')
-        ->load($term['target_id']);
-}
+namespace Drupal\Tests\my_module\Functional;
 
-
-use Drupal\taxonomy\Entity\Term;
+use Drupal\Tests\BrowserTestBase;
 
 /**
- * Implements hook_preprocess_HOOK() for views_view__fullcalendar.
+ * Tests the custom Twig extension for theme image paths.
+ *
+ * @group my_module
  */
-function MY_THEME_preprocess_views_view(&$variables) {
-  if ($variables['view']->id() === 'fullcalendar') {
-    $vocabulary = 'event_type'; // Replace with actual vocabulary machine name
+class MyCustomTwigTest extends BrowserTestBase {
 
-    // Load all terms from the vocabulary
-    $terms = \Drupal::entityTypeManager()
-      ->getStorage('taxonomy_term')
-      ->loadByProperties(['vid' => $vocabulary]);
+  /**
+   * {@inheritdoc}
+   */
+  protected static $modules = ['node', 'block', 'my_module'];
 
-    // Sort terms by weight
-    usort($terms, function (Term $a, Term $b) {
-      return $a->getWeight() <=> $b->getWeight();
-    });
+  /**
+   * A user with permissions to view content.
+   */
+  protected $user;
 
-    // Prepare a render array
-    $items = [];
-    foreach ($terms as $term) {
-      $items[] = [
-        '#type' => 'html_tag',
-        '#tag' => 'span',
-        '#attributes' => ['class' => ['event-type', 'weight-' . $term->getWeight()]],
-        '#value' => $term->label(),
-      ];
-    }
+  /**
+   * {@inheritdoc}
+   */
+  protected function setUp(): void {
+    parent::setUp();
 
-    // Wrap in a container
-    $variables['event_type_legend'] = [
-      '#type' => 'container',
-      '#attributes' => ['class' => ['event-type-legend']],
-      'items' => $items,
-    ];
+    // Create and log in a user.
+    $this->user = $this->drupalCreateUser(['access content']);
+    $this->drupalLogin($this->user);
   }
-}
-use Drupal\taxonomy\Entity\Term;
 
-/**
- * Implements hook_preprocess_HOOK() for views_view__fullcalendar.
- */
-function MY_THEME_preprocess_views_view(&$variables) {
-  if ($variables['view']->id() === 'fullcalendar') {
-    $vocabulary = 'event_type'; // Replace with actual vocabulary machine name
+  /**
+   * Tests if the Twig filter correctly generates the theme image path.
+   */
+  public function testTwigThemeImageFilter() {
+    // Create a test page with the Twig template applied.
+    $this->drupalPlaceBlock('system_main_block');
 
-    // Load all terms from the vocabulary
-    $terms = \Drupal::entityTypeManager()
-      ->getStorage('taxonomy_term')
-      ->loadByProperties(['vid' => $vocabulary]);
+    // Visit the homepage.
+    $this->drupalGet('<front>');
 
-    // Sort terms by weight
-    usort($terms, function (Term $a, Term $b) {
-      return $a->getWeight() <=> $b->getWeight();
-    });
+    // Assert that the custom Twig filter correctly generates the theme image path.
+    $theme_path = '/themes/custom/' . \Drupal::service('theme_handler')->getDefault();
+    $expected_image_url = $theme_path . '/assets/logo.png';
 
-    // Build event type legend render array
-    $legend = [
-      '#type' => 'container',
-      '#attributes' => ['class' => ['event-type-legend']],
-      'items' => [],
-    ];
-
-    foreach ($terms as $term) {
-      $legend['items'][] = [
-        '#type' => 'html_tag',
-        '#tag' => 'span',
-        '#attributes' => ['class' => ['event-type', 'weight-' . $term->getWeight()]],
-        '#value' => $term->label(),
-      ];
-    }
-
-    // Modify the title as a render array
-    $title_markup = [
-      '#type' => 'markup',
-      '#markup' => $variables['title'],
-      '#allowed_tags' => ['div', 'span', 'strong', 'em'],
-    ];
-
-    // Attach the title and legend together
-    $variables['#pre_render'][] = function ($element) use ($title_markup, $legend) {
-      return [
-        '#type' => 'container',
-        '#attributes' => ['class' => ['fullcalendar-title-wrapper']],
-        'title' => $title_markup,
-        'legend' => $legend,
-      ];
-    };
+    // Check if the image URL is present in the rendered page.
+    $this->assertSession()->elementExists('css', 'img[src="' . $expected_image_url . '"]');
   }
+
 }
