@@ -8,3 +8,19 @@ set rightSideNavigationItems = rightSideNavigationItems|merge([{
         'alt': image.alt,
         
       }])
+
+{% set image = {
+    src: "/themes/custom/voya/images/default-tile.png",
+    alt: "Default Image"|t,
+} %}
+
+{# Ensure rightSideNavigationItems is an array before merging #}
+{% if rightSideNavigationItems is not defined or rightSideNavigationItems is not iterable %}
+  {% set rightSideNavigationItems = [] %}
+{% endif %}
+
+{# Apply the default_image filter correctly and merge #}
+{% set rightSideNavigationItems = rightSideNavigationItems|merge([{
+    'tileImg': image.src | default_image,
+    'alt': image.alt,
+}]) %}
