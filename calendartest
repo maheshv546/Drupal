@@ -67,3 +67,50 @@ function MYMODULE_views_pre_render(ViewExecutable $view) {
     }
   };
 })(jQuery, Drupal, once);
+
+(function ($, Drupal) {
+  Drupal.behaviors.fullcalendarTooltip = {
+    attach: function (context, settings) {
+      $('.fullcalendar:not(.tooltip-applied)', context).each(function () {
+        $(this).addClass('tooltip-applied'); // Prevent reapplying
+        $(this).fullCalendar({
+          eventRender: function (event, element) {
+            var tooltipContent = '<strong>' + event.title + '</strong><br/>' +
+                                 '<em>' + event.event_date + '</em><br/>' +
+                                 event.description + '<br/>' +
+                                 '<a href="' + event.url + '" target="_blank">View Details</a>';
+
+            element.tooltip({
+              content: tooltipContent,
+              track: true,
+            });
+          }
+        });
+      });
+    }
+  };
+})(jQuery, Drupal);
+
+(function ($, Drupal) {
+  Drupal.behaviors.fullcalendarTooltip = {
+    attach: function (context, settings) {
+      $('.fullcalendar:not(.tooltip-applied)', context).each(function () {
+        $(this).addClass('tooltip-applied'); // Prevent reapplying
+        $(this).fullCalendar({
+          eventRender: function (event, element) {
+            var tooltipContent = '<strong>' + event.title + '</strong><br/>' +
+                                 '<em>' + event.event_date + '</em><br/>' +
+                                 event.description + '<br/>' +
+                                 '<a href="' + event.url + '" target="_blank">View Details</a>';
+
+            element.tooltip({
+              content: tooltipContent,
+              track: true,
+            });
+          }
+        });
+      });
+    }
+  };
+})(jQuery, Drupal);
+
