@@ -1,26 +1,22 @@
-function MYMODULE_fullcalendar_events_alter(array &$events, array $view, array $options) {
-  foreach ($events as &$event) {
-    // Ensure we have a valid entity ID and it's a node.
-    if (!empty($event['entity_id']) && $event['entity_type'] === 'node') {
-      $node = \Drupal::entityTypeManager()->getStorage('node')->load($event['entity_id']);
-      
-      if ($node) {
-        // Get event date (adjust field name if necessary)
-        $date_field = 'field_event_date'; // Change to your actual date field
-        $event_date = $node->get($date_field)->value ?? '';
+function MYMODULE_views_pre_render(ViewExecutable $view) {
+  // Replace with your FullCalendar View ID.
+  if ($view->id() == 'your_fullcalendar_view_id' && $view->current_display == 'your_display_id') {
+    foreach ($view->result as &$row) {
+      if (isset($row->_entity)) {
+        $node = $row->_entity;
 
-        // Get body text
-        $body_field = 'body'; // Change if your body field has a different name
-        $body = $node->hasField($body_field) ? strip_tags($node->get($body_field)->value) : '';
+        // Extract event details.
+        $event_date = $node->get('field_event_date')->value ?? '';
+        $body = $node->hasField('body') ? strip_tags($node->get('body')->value) : '';
 
-        // Create event link
+        // Add a clickable event link.
         $event_url = $node->toUrl()->toString();
 
-        // Add custom data to the event object
-        $event['title'] = $node->label();
-        $event['description'] = $body;
-        $event['event_date'] = $event_date;
-        $event['url'] = $event_url;
+        // Attach additional data.
+        $row->event_data['title'] = $node->label();
+        $row->event_data['description'] = $body;
+        $row->event_data['event_date'] = $event_date;
+        $row->event_data['url'] = $event_url;
       }
     }
   }
@@ -30,22 +26,17 @@ function MYMODULE_fullcalendar_events_alter(array &$events, array $view, array $
   Drupal.behaviors.fullcalendarTooltip = {
     attach: function (context, settings) {
       $('.fullcalendar').once('fullcalendar-tooltip').each(function () {
-        $(this).fullCalendar('option', {
+        $(this).fullCalendar({
           eventRender: function (event, element) {
-            // Construct tooltip content
             var tooltipContent = '<strong>' + event.title + '</strong><br/>' +
                                  '<em>' + event.event_date + '</em><br/>' +
                                  event.description + '<br/>' +
                                  '<a href="' + event.url + '" target="_blank">View Details</a>';
 
-            // Apply tooltip
             element.attr('title', tooltipContent);
             element.tooltip({
               content: tooltipContent,
               track: true,
-              items: "[title]",
-              show: { effect: "fadeIn", delay: 200 },
-              hide: { effect: "fadeOut", delay: 200 },
             });
           }
         });
@@ -54,15 +45,3 @@ function MYMODULE_fullcalendar_events_alter(array &$events, array $view, array $
   };
 })(jQuery, Drupal);
 
-fullcalendar_tooltip:
-  version: 1.x
-  js:
-    js/fullcalendar-tooltip.js: {}
-  dependencies:
-    - core/jquery
-    - core/drupal
-    - core/drupal.ajax
-    - core/jquery.ui.tooltip
-
-libraries:
-  - yourtheme/fullcalendar_tooltip
