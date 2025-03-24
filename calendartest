@@ -1,125 +1,68 @@
-namespace Drupal\Tests\MY_THEME\Functional;
+function MYMODULE_fullcalendar_events_alter(array &$events, array $view, array $options) {
+  foreach ($events as &$event) {
+    // Ensure we have a valid entity ID and it's a node.
+    if (!empty($event['entity_id']) && $event['entity_type'] === 'node') {
+      $node = \Drupal::entityTypeManager()->getStorage('node')->load($event['entity_id']);
+      
+      if ($node) {
+        // Get event date (adjust field name if necessary)
+        $date_field = 'field_event_date'; // Change to your actual date field
+        $event_date = $node->get($date_field)->value ?? '';
 
-use Drupal\Core\Url;
-use Drupal\taxonomy\Entity\Term;
-use Drupal\taxonomy\Entity\Vocabulary;
-use Drupal\Tests\BrowserTestBase;
+        // Get body text
+        $body_field = 'body'; // Change if your body field has a different name
+        $body = $node->hasField($body_field) ? strip_tags($node->get($body_field)->value) : '';
 
-/**
- * Tests the event type legend in FullCalendar view.
- *
- * @group MY_THEME
- */
-class FullCalendarLegendTest extends BrowserTestBase {
+        // Create event link
+        $event_url = $node->toUrl()->toString();
 
-  /**
-   * Modules to enable.
-   *
-   * @var array
-   */
-  protected static $modules = ['node', 'views', 'taxonomy', 'block', 'fullcalendar_view'];
-
-  /**
-   * A user with permission to access views and taxonomy.
-   *
-   * @var \Drupal\user\UserInterface
-   */
-  protected $user;
-
-  /**
-   * {@inheritdoc}
-   */
-  protected function setUp(): void {
-    parent::setUp();
-
-    // Create a user with necessary permissions.
-    $this->user = $this->drupalCreateUser([
-      'access content',
-      'administer taxonomy',
-      'administer views',
-    ]);
-    $this->drupalLogin($this->user);
-
-    // Create the "event_type" vocabulary.
-    Vocabulary::create([
-      'vid' => 'event_type',
-      'label' => 'Event Type',
-    ])->save();
-
-    // Add some terms to the vocabulary.
-    $terms = [
-      'Workshop',
-      'Webinar',
-      'Conference',
-    ];
-    $weight = 0;
-    foreach ($terms as $term_name) {
-      Term::create([
-        'vid' => 'event_type',
-        'name' => $term_name,
-        'weight' => $weight++,
-      ])->save();
+        // Add custom data to the event object
+        $event['title'] = $node->label();
+        $event['description'] = $body;
+        $event['event_date'] = $event_date;
+        $event['url'] = $event_url;
+      }
     }
-
-    // Place the FullCalendar block.
-    $this->drupalPlaceBlock('views_block:fullcalendar-block_1');
-  }
-
-  /**
-   * Tests if the event type legend is displayed correctly.
-   */
-  public function testEventLegendDisplays() {
-    // Visit the FullCalendar view page.
-    $this->drupalGet(Url::fromRoute('<your_view_route>'));
-
-    // Assert "Event :" is present.
-    $this->assertSession()->pageTextContains('Event :');
-
-    // Assert taxonomy terms are displayed in the legend.
-    $this->assertSession()->elementExists('css', '.event-type-legend');
-    $this->assertSession()->elementContains('css', '.event-type-legend', 'Workshop');
-    $this->assertSession()->elementContains('css', '.event-type-legend', 'Webinar');
-    $this->assertSession()->elementContains('css', '.event-type-legend', 'Conference');
-
-    // Assert weight classes exist.
-    $this->assertSession()->elementExists('css', '.weight-0');
-    $this->assertSession()->elementExists('css', '.weight-1');
-    $this->assertSession()->elementExists('css', '.weight-2');
-  }
-
-  /**
-   * Tests adding a new term and ensuring it's reflected in the legend.
-   */
-  public function testAddNewTerm() {
-    // Create a new term dynamically.
-    Term::create([
-      'vid' => 'event_type',
-      'name' => 'Seminar',
-      'weight' => 3,
-    ])->save();
-
-    // Reload the page and check if the new term appears.
-    $this->drupalGet(Url::fromRoute('<your_view_route>'));
-    $this->assertSession()->elementContains('css', '.event-type-legend', 'Seminar');
-    $this->assertSession()->elementExists('css', '.weight-3');
-  }
-
-  /**
-   * Tests editing an existing term and verifying the update.
-   */
-  public function testEditExistingTerm() {
-    // Load the "Webinar" term and rename it to "Virtual Event".
-    $terms = \Drupal::entityTypeManager()
-      ->getStorage('taxonomy_term')
-      ->loadByProperties(['vid' => 'event_type', 'name' => 'Webinar']);
-
-    $term = reset($terms);
-    $term->setName('Virtual Event');
-    $term->save();
-
-    // Reload the page and check if the change is reflected.
-    $this->drupalGet(Url::fromRoute('<your_view_route>'));
-    $this->assertSession()->elementContains('css', '.event-type-legend', 'Virtual Event');
-    $this->assertSession()->elementNotContains('css', '.event-type-legend', 'Webinar');
   }
 }
+
+(function ($, Drupal) {
+  Drupal.behaviors.fullcalendarTooltip = {
+    attach: function (context, settings) {
+      $('.fullcalendar').once('fullcalendar-tooltip').each(function () {
+        $(this).fullCalendar('option', {
+          eventRender: function (event, element) {
+            // Construct tooltip content
+            var tooltipContent = '<strong>' + event.title + '</strong><br/>' +
+                                 '<em>' + event.event_date + '</em><br/>' +
+                                 event.description + '<br/>' +
+                                 '<a href="' + event.url + '" target="_blank">View Details</a>';
+
+            // Apply tooltip
+            element.attr('title', tooltipContent);
+            element.tooltip({
+              content: tooltipContent,
+              track: true,
+              items: "[title]",
+              show: { effect: "fadeIn", delay: 200 },
+              hide: { effect: "fadeOut", delay: 200 },
+            });
+          }
+        });
+      });
+    }
+  };
+})(jQuery, Drupal);
+
+fullcalendar_tooltip:
+  version: 1.x
+  js:
+    js/fullcalendar-tooltip.js: {}
+  dependencies:
+    - core/jquery
+    - core/drupal
+    - core/drupal.ajax
+    - core/jquery.ui.tooltip
+
+libraries:
+  - yourtheme/fullcalendar_tooltip
