@@ -29,3 +29,27 @@
     }
   };
 })(jQuery, Drupal);
+
+
+(function ($, Drupal, once) {
+  Drupal.behaviors.customTooltip = {
+    attach: function (context, settings) {
+      // Attach tooltips to events after FullCalendar renders.
+      $('.fullcalendar', context).once('custom-tooltip').each(function () {
+        $(this).on('DOMSubtreeModified', function () {
+          // Find all events and add the tooltip.
+          $('.fc-event', context).each(function () {
+            var eventTitle = $(this).find('.fc-title').text();
+            if (eventTitle && !$(this).attr('title')) {
+              $(this).attr('title', eventTitle);
+              // Use jQuery UI tooltip if available.
+              if ($.fn.tooltip) {
+                $(this).tooltip();
+              }
+            }
+          });
+        });
+      });
+    }
+  };
+})(jQuery, Drupal, once);
