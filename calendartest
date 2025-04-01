@@ -53,3 +53,48 @@
     }
   };
 })(jQuery, Drupal, once);
+
+
+(function ($, Drupal, once) {
+  Drupal.behaviors.customTooltip = {
+    attach: function (context) {
+      // Initialize tooltips on calendar events.
+      function initializeTooltips() {
+        $('.fc-event', context).each(function () {
+          var eventTitle = $(this).find('.fc-title').text();
+          if (eventTitle && !$(this).attr('title')) {
+            $(this).attr('title', eventTitle);
+
+            // Apply jQuery UI tooltip if available.
+            if ($.fn.tooltip) {
+              $(this).tooltip();
+            }
+          }
+        });
+      }
+
+      // Observe changes in the FullCalendar container.
+      $('.fullcalendar', context).once('custom-tooltip').each(function () {
+        const targetNode = this;
+
+        // Create a mutation observer to detect changes.
+        const observer = new MutationObserver(function (mutations) {
+          mutations.forEach(function (mutation) {
+            if (mutation.type === 'childList') {
+              initializeTooltips();
+            }
+          });
+        });
+
+        // Start observing the calendar for child node changes.
+        observer.observe(targetNode, {
+          childList: true,
+          subtree: true,
+        });
+
+        // Initialize tooltips when the page first loads.
+        initializeTooltips();
+      });
+    }
+  };
+})(jQuery, Drupal, once);
