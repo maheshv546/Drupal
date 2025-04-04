@@ -13,3 +13,27 @@ $form['background'] = [
         ],
       ],
     ];
+
+$form['background'] = [
+  '#type' => 'select',
+  '#title' => $this->t('Background color'),
+  '#default_value' => $theme ?? '',
+  '#options' => CoreTheme::themeOptions(),
+  '#states' => [
+    // Show this field only if an image is being used.
+    'visible' => [
+      ':input[name="image[browser][entity_ids]"]' => ['filled' => TRUE],
+    ],
+    'required' => [
+      ':input[name="image[browser][entity_ids]"]' => ['filled' => TRUE],
+    ],
+  ],
+];
+
+// Check if the image field is already populated.
+if (!empty($form_state->getValue(['image', 'browser', 'entity_ids']))) {
+  $form['background']['#attributes']['style'] = 'display: block;';
+}
+else {
+  $form['background']['#attributes']['style'] = 'display: none;';
+}
