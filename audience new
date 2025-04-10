@@ -1,26 +1,14 @@
-{% set image = {
-        src: "/themes/custom/voya/images/default-tile.png",
-        alt: "Default Image"|t,
-      } %}
+$logo_url = theme_get_setting('logo.url');
 
-set rightSideNavigationItems = rightSideNavigationItems|merge([{
-        'tileImg': image.src | default_image,
-        'alt': image.alt,
-        
-      }])
+// Convert the public URL to a real file path
+$logo_path = DRUPAL_ROOT . parse_url($logo_url, PHP_URL_PATH);
 
-{% set image = {
-    src: "/themes/custom/voya/images/default-tile.png",
-    alt: "Default Image"|t,
-} %}
+// Decode any URL-encoded characters (e.g., %20 → space)
+$logo_path = urldecode($logo_path);
 
-{# Ensure rightSideNavigationItems is an array before merging #}
-{% if rightSideNavigationItems is not defined or rightSideNavigationItems is not iterable %}
-  {% set rightSideNavigationItems = [] %}
-{% endif %}
-
-{# Apply the default_image filter correctly and merge #}
-{% set rightSideNavigationItems = rightSideNavigationItems|merge([{
-    'tileImg': image.src | default_image,
-    'alt': image.alt,
-}]) %}
+if (file_exists($logo_path)) {
+  // File exists
+  // Do something, maybe log or render
+} else {
+  \Drupal::logger('debug')->notice('Logo file not found at path: @path', ['@path' => $logo_path]);
+}
