@@ -1,54 +1,219 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Drupal\Tests\voya_core\Functional;
+
+use Drupal\block\Entity\Block;
+use Drupal\Core\File\FileExists;
+use Drupal\Core\StreamWrapper\PublicStream;
+use Drupal\file\Entity\File;
+use Drupal\menu_link_content\Entity\MenuLinkContent;
+use Drupal\Tests\BrowserTestBase;
+use Drupal\Tests\TestFileCreationTrait;
+use Voya\Drupal\Tests\VoyaTestTrait;
+
 /**
- * Test the header logo block with filenames with and without spaces.
+ * Header tests.
+ *
+ * @group voya_blocks
  */
-public function testHeaderBlock(): void {
-  $selector = '#block-voya-header-block';
+class HeaderBlockTest extends BrowserTestBase {
+  use BaseMenuTestTrait;
+  use VoyaTestTrait;
 
-  // Place the header block.
-  $this->drupalPlaceBlock('voya_header', [
-    'id' => 'voya-header-block',
-    'service_links_display' => 'split',
-  ]);
+  use TestFileCreationTrait {
+    getTestFiles as voyaGetTestFiles;
+  }
 
-  // Create dummy file content.
-  file_put_contents('temporary://test_file.pdf', 'hello world');
-  $public_directory = PublicStream::basePath();
-  $test_file = \Drupal::service('file_system')->copy('temporary://test_file.pdf', $public_directory, FileExists::Replace);
-  $test_file_data = file_get_contents($test_file);
+  /**
+   * {@inheritdoc}
+   */
+  protected static $modules = ['voya_core', 'menu_link_content'];
 
-  // === Test logo with space in filename ===
-  $file_with_space = File::create(['uri' => 'public://Portland_logo - City seal only.png']);
-  $file_with_space->setTemporary();
-  file_put_contents($file_with_space->getFileUri(), $test_file_data);
-  $file_with_space->save();
+  /**
+   * {@inheritdoc}
+   */
+  protected function setUp(): void {
+    parent::setUp();
+    $this->createPrimaryMenu();
 
-  $this->config('system.theme.global')
-    ->set('logo.use_default', FALSE)
-    ->set('logo.path', $file_with_space->getFileUri())
-    ->save();
+    // Make some service links.
+    MenuLinkContent::create([
+      'title' => "Service Link 1",
+      'link' => ['uri' => "internal:/service/page/1"],
+      'menu_name' => 'service-links',
+    ])->save();
+    MenuLinkContent::create([
+      'title' => "Service Link 2",
+      'link' => ['uri' => "internal:/service/page/2"],
+      'menu_name' => 'service-links',
+    ])->save();
+  }
 
-  $this->drupalGet('<front>');
-  $logo_with_space = $this->xpath('//img[@src=:url and @alt=:alt]', [
-    ':url' => \Drupal::service('file_url_generator')->generateString($file_with_space->getFileUri()),
-    ':alt' => $this->config('system.site')->get('name') . ' logo',
-  ]);
-  $this->assertCount(1, $logo_with_space, 'Logo image with space in filename is rendered.');
+  /**
+   * Test the simple navigation block.
+   */
+  public function testHeaderBlock(): void {
+    // Place the block.
+    $selector = '#block-voya-header-block';
+    $block = $this->drupalPlaceBlock('voya_header', [
+      'id' => 'voya-header-block',
+      'service_links_display' => 'split',
+    ]);
+    $this->drupalGet('');
 
-  // === Test logo without space in filename ===
-  $file_without_space = File::create(['uri' => 'public://Portland_logo-City-seal-only.png']);
-  $file_without_space->setTemporary();
-  file_put_contents($file_without_space->getFileUri(), $test_file_data);
-  $file_without_space->save();
+    // Check our block exists.
+    $this->assertSession()->elementExists('css', $selector);
 
-  // Switch to the new logo file.
-  $this->config('system.theme.global')
-    ->set('logo.path', $file_without_space->getFileUri())
-    ->save();
+    // Check main menu links in the header.
+    $this->assertSession()->elementContains('css', $selector . ' h2+ul', 'Parent 2');
+    $this->assertSession()->linkByHrefExists('/parent1');
+    $this->assertSession()->linkByHrefExists('/parent2/child1');
+    $this->assertSession()->linkByHrefExists('/parent3/child2');
 
-  $this->drupalGet('<front>');
-  $logo_without_space = $this->xpath('//img[@src=:url and @alt=:alt]', [
-    ':url' => \Drupal::service('file_url_generator')->generateString($file_without_space->getFileUri()),
-    ':alt' => $this->config('system.site')->get('name') . ' logo',
-  ]);
-  $this->assertCount(1, $logo_without_space, 'Logo image without space in filename is rendered.');
+    // Make sure 4th level of main menu is not printed.
+    $this->assertSession()->linkByHrefNotExists('/parent1/child1/child1/child1');
+
+    // Check service links exist.
+    $this->assertSession()->linkByHrefExists('/service/page/2');
+
+    // Check if the service links are in the correct div.
+    $this->assertSession()->elementsCount('css', $selector . ' .service-left a', 1);
+    $this->assertSession()->elementsCount('css', $selector . ' .service-right a', 1);
+
+    // Edit the block and set the alignment to the left.
+    $block = Block::load($block->id());
+    $block->getPlugin()->setConfigurationValue('service_links_display', 'left');
+    $block->save();
+
+    // Check if the service links are in the correct div.
+    $this->drupalGet('');
+    $this->assertSession()->elementsCount('css', $selector . ' .service-left a', 2);
+    $this->assertSession()->elementsCount('css', $selector . ' .service-right a', 0);
+
+    // Edit the block and set the alignment to the right.
+    $block = Block::load($block->id());
+    $block->getPlugin()->setConfigurationValue('service_links_display', 'right');
+    $block->save();
+
+    // Check if the service links are in the correct div.
+    $this->drupalGet('');
+    $this->assertSession()->elementsCount('css', $selector . ' .service-left a', 0);
+    $this->assertSession()->elementsCount('css', $selector . ' .service-right a', 2);
+
+    // Check the default to show dropdowns.
+    $this->assertSession()->elementsCount('css', '.show-expanded', 1);
+
+    // Set the flag to hide dropdowns.
+    $block->getPlugin()->setConfigurationValue('show_expanded', FALSE);
+    $block->save();
+    $this->drupalGet('');
+    $this->assertSession()->elementsCount('css', '.hide-expanded', 1);
+
+    // If search module is not enabled, link will not be present.
+    $this->assertSession()->linkNotExists('Search', 'Link should not be present when search is disabled');
+
+    // If search module is enabled, link will be present.
+    \Drupal::service('module_installer')->install(['voya_search_ui']);
+    $this->drupalGet('');
+    $this->assertSession()->linkExists('Search', 0, 'Link does not exist when search is enabled.');
+
+    // Check if login link is NOT displayed when there are no values.
+    $this->drupalGet('');
+    $this->assertSession()->linkNotExists('Login', 'Login link exists without values.');
+
+    // Add values to see if login link displays.
+    $login_url = [
+      'title' => 'Login',
+      'url' => '/user',
+    ];
+    $block = Block::load($block->id());
+    $block->getPlugin()->setConfigurationValue('account_login_link', $login_url);
+    $block->save();
+    $this->drupalGet('');
+    $this->assertSession()->linkExists('Login', 0, 'Login link does not exist.');
+
+    // Check if external link is used.
+    $login_url['url'] = 'https://www.google.com';
+    $block->getPlugin()->setConfigurationValue('account_login_link', $login_url);
+    $block->save();
+    $this->drupalGet('');
+    $this->assertSession()->linkByHrefExists($login_url['url'], 0, 'External link does not display.');
+
+    // Check if invalid link is used.
+    $login_url['url'] = '/invalid-link';
+    $block->getPlugin()->setConfigurationValue('account_login_link', $login_url);
+    $block->save();
+    $this->drupalGet('');
+    $this->assertSession()->linkByHrefNotExists('/invalid-link', 'Invalid link exists.');
+
+    // Check if hash is used. Default link will populate as '/'.
+    $login_url['url'] = '#';
+    $login_url['title'] = 'Hashed Link';
+    $block->getPlugin()->setConfigurationValue('account_login_link', $login_url);
+    $block->save();
+    $this->drupalGet('');
+    $this->assertSession()->linkExists('Hashed Link', 0, 'Login link does not exist.');
+
+    // Create dummy file content.
+    file_put_contents('temporary://test_file.pdf', 'hello world');
+    $public_directory = PublicStream::basePath();
+    $test_file = \Drupal::service('file_system')->copy('temporary://test_file.pdf', $public_directory, FileExists::Replace);
+    $test_file_data = file_get_contents($test_file);
+
+    // === Test logo with space in filename ===
+    $file_with_space = File::create(['uri' => 'public://Portland_logo - City seal only.png']);
+    $file_with_space->setTemporary();
+    file_put_contents($file_with_space->getFileUri(), $test_file_data);
+    $file_with_space->save();
+
+    $this->config('system.theme.global')
+      ->set('logo.use_default', FALSE)
+      ->set('logo.path', $file_with_space->getFileUri())
+      ->save();
+
+      $this->drupalGet('');
+    $logo_with_space = $this->xpath('//img[@src=:url and @alt=:alt]', [
+      ':url' => \Drupal::service('file_url_generator')->generateString($file_with_space->getFileUri()),
+      ':alt' => $this->config('system.site')->get('name') . ' logo',
+    ]);
+    $this->assertCount(1, $logo_with_space, 'Logo image with space in filename is rendered.');
+
+    // === Test logo without space in filename ===
+    $file_without_space = File::create(['uri' => 'public://Portland_logo-City-seal-only.png']);
+    $file_without_space->setTemporary();
+    file_put_contents($file_without_space->getFileUri(), $test_file_data);
+    $file_without_space->save();
+
+    // Switch to the new logo file.
+    $this->config('system.theme.global')
+      ->set('logo.path', $file_without_space->getFileUri())
+      ->save();
+
+    $this->drupalGet('');
+    $logo_without_space = $this->xpath('//img[@src=:url and @alt=:alt]', [
+      ':url' => \Drupal::service('file_url_generator')->generateString($file_without_space->getFileUri()),
+      ':alt' => $this->config('system.site')->get('name') . ' logo',
+    ]);
+    $this->assertCount(1, $logo_without_space, 'Logo image without space in filename is rendered.');
+
+    // Add a custom logo.
+    $test_image = current($this->voyaGetTestFiles('image'));
+    $this->config('system.theme.global')->set('logo.use_default', 0);
+    $this->config('system.theme.global')->set('logo.path', $test_image->uri);
+    $this->config('system.theme.global')->save();
+    $this->drupalGet('');
+    $elements = $this->xpath(
+      '//img[@src=:url and @alt=:alt]',
+      [
+        ':url' => \Drupal::service('file_url_generator')->generateString($test_image->uri),
+        ':alt' => $this->config('system.site')->get('name') . ' logo',
+      ]
+    );
+    $this->assertCount(1, $elements, 'The expected logo image did not render.');
+
+    // @todo Add cache testing. Change menus, switch pages, etc.
+    
+}
 }
