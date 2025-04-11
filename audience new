@@ -169,7 +169,7 @@ class HeaderBlockTest extends BrowserTestBase {
     $file_with_space->save();
 
     $this->config('system.theme.global')
-      ->set('logo.use_default', FALSE)
+      ->set('logo.use_default', 0)
       ->set('logo.path', $file_with_space->getFileUri())
       ->save();
 
@@ -188,6 +188,7 @@ class HeaderBlockTest extends BrowserTestBase {
 
     // Switch to the new logo file.
     $this->config('system.theme.global')
+      ->set('logo.use_default', 0)
       ->set('logo.path', $file_without_space->getFileUri())
       ->save();
 
