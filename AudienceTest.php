@@ -1,3 +1,10 @@
+protected function clearThemeCaches(): void {
+  foreach (['render', 'page', 'dynamic_page_cache'] as $bin) {
+    \Drupal::service("cache.$bin")->deleteAll();
+  }
+}
+
+
 protected function refreshThemeConfig(): void {
   \Drupal::service('config.factory')->reset('system.theme.global');
   \Drupal::service('theme_handler')->refreshInfo();
