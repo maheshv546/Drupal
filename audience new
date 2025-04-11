@@ -1,3 +1,10 @@
+
+$png_data = base64_decode(
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8Xw8AAm8B9UbwypwAAAAASUVORK5CYII='
+);
+
+// Save to temporary file.
+file_put_contents('temporary://test.png', $png_data);
 <?php
 
 declare(strict_types=1);
