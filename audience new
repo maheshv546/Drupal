@@ -1,47 +1,54 @@
 /**
-   * Test the header logo block.
-   */
-  public function testHeaderBlock(): void {
-    $selector = '#block-voya-header-block';
-    $block = $this->drupalPlaceBlock('voya_header', [
-      'id' => 'voya-header-block',
-      'service_links_display' => 'split',
-    ]);
-    // Create a test file and copy it into the public file system.
-    file_put_contents('temporary://test_file.pdf', 'hello world');
-    $public_directory = PublicStream::basePath();
-    $test_file = \Drupal::service('file_system')->copy('temporary://test_file.pdf', $public_directory, FileExists::Replace);
-    $test_file_data = file_get_contents($test_file);
+ * Test the header logo block with filenames with and without spaces.
+ */
+public function testHeaderBlock(): void {
+  $selector = '#block-voya-header-block';
 
-    // Create a test temp file in public directory and set it as temporary.
-    $file_public_temporary = File::create(['uri' => 'public://Portland_logo - City seal only.png']);
-    $file_public_temporary->setTemporary();
-    file_put_contents($file_public_temporary->getFileUri(), $test_file_data);
-    $file_public_temporary->save();
-    $this->config('system.theme.global')->set('logo.use_default', 0);
-    $this->config('system.theme.global')->set('logo.path', $file_public_temporary->getFileUri());
-    $this->config('system.theme.global')->save();
-    $this->drupalGet('');
-    $logo_file_withspace = $this->xpath(
-      '//img[@src=:url and @alt=:alt]',
-      [
-        ':url' => \Drupal::service('file_url_generator')->generateString($file_public_temporary->getFileUri()),
-        ':alt' => $this->config('system.site')->get('name') . ' logo',
-      ]
-    );
-    $this->assertCount(1, $logo_file_withspace, 'The expected logo image rendered with space.');
+  // Place the header block.
+  $this->drupalPlaceBlock('voya_header', [
+    'id' => 'voya-header-block',
+    'service_links_display' => 'split',
+  ]);
 
-    $file_public_temporary_withoutspace = File::create(['uri' => 'public://Portland_logo-City-seal-only.png']);
-    $file_public_temporary_withoutspace->setTemporary();
-    file_put_contents($file_public_temporary_withoutspace->getFileUri(), $test_file_data);
-    $file_public_temporary_withoutspace->save();
-    $this->drupalGet('');
-    $logo_file_withoutspace = $this->xpath(
-      '//img[@src=:url and @alt=:alt]',
-      [
-        ':url' => \Drupal::service('file_url_generator')->generateString($file_public_temporary_withoutspace->getFileUri()),
-        ':alt' => $this->config('system.site')->get('name') . ' logo',
-      ]
-    );
-    $this->assertCount(0, $logo_file_withoutspace, 'The expected logo image rendered without space.');
-  }
+  // Create dummy file content.
+  file_put_contents('temporary://test_file.pdf', 'hello world');
+  $public_directory = PublicStream::basePath();
+  $test_file = \Drupal::service('file_system')->copy('temporary://test_file.pdf', $public_directory, FileExists::Replace);
+  $test_file_data = file_get_contents($test_file);
+
+  // === Test logo with space in filename ===
+  $file_with_space = File::create(['uri' => 'public://Portland_logo - City seal only.png']);
+  $file_with_space->setTemporary();
+  file_put_contents($file_with_space->getFileUri(), $test_file_data);
+  $file_with_space->save();
+
+  $this->config('system.theme.global')
+    ->set('logo.use_default', FALSE)
+    ->set('logo.path', $file_with_space->getFileUri())
+    ->save();
+
+  $this->drupalGet('<front>');
+  $logo_with_space = $this->xpath('//img[@src=:url and @alt=:alt]', [
+    ':url' => \Drupal::service('file_url_generator')->generateString($file_with_space->getFileUri()),
+    ':alt' => $this->config('system.site')->get('name') . ' logo',
+  ]);
+  $this->assertCount(1, $logo_with_space, 'Logo image with space in filename is rendered.');
+
+  // === Test logo without space in filename ===
+  $file_without_space = File::create(['uri' => 'public://Portland_logo-City-seal-only.png']);
+  $file_without_space->setTemporary();
+  file_put_contents($file_without_space->getFileUri(), $test_file_data);
+  $file_without_space->save();
+
+  // Switch to the new logo file.
+  $this->config('system.theme.global')
+    ->set('logo.path', $file_without_space->getFileUri())
+    ->save();
+
+  $this->drupalGet('<front>');
+  $logo_without_space = $this->xpath('//img[@src=:url and @alt=:alt]', [
+    ':url' => \Drupal::service('file_url_generator')->generateString($file_without_space->getFileUri()),
+    ':alt' => $this->config('system.site')->get('name') . ' logo',
+  ]);
+  $this->assertCount(1, $logo_without_space, 'Logo image without space in filename is rendered.');
+}
