@@ -1,25 +1,28 @@
-$(document).ready(function() {
-  const input = "April 25-title-description";
+jQuery(document).ready(function customTooltip() {
+  jQuery('div.fc-daygrid-day-frame a.fc-event').each(function EventToolTip() {
+  const input = jQuery(this).find('.fc-event-title').text().trim();
   const parts = input.split('-');
   const date = parts[0];
   const title = parts[1];
   const description = parts[2];
 
-  const $container = $('<div class="event-container"></div>');
-  const $title = $('<div class="title"></div>').text(title);
-  const $hoverContent = $('<div class="hover-content"></div>')
-    .html(`<div class="date">${date}</div><div class="description">${description}</div>`)
+  const $container = jQuery('<div class="event-container"></div>');
+  const $title = jQuery('<div class="title"></div>').text(title);
+  const $hoverContent = jQuery('<div class="hover-content"></div>')
+    .html(`<div class="date">${date}</div>${title}<div class="description">${description}</div>`)
     .hide();
 
   $container.append($title).append($hoverContent);
-  $('body').append($container);
+  jQuery(this).find('.fc-event-title').hide();
+  jQuery(this).append($container);
 
   $container.hover(
-    function() {
-      $(this).find('.hover-content').fadeIn(200);
+    function eventHoverfadeIn() {
+      jQuery(this).find('.hover-content').fadeIn(200);
     },
-    function() {
-      $(this).find('.hover-content').fadeOut(200);
+    function eventHoverfadeOut() {
+      jQuery(this).find('.hover-content').fadeOut(200);
     }
   );
+  })
 });
