@@ -1,19 +1,22 @@
-protected function clearThemeCaches(): void {
-  foreach (['render', 'page', 'dynamic_page_cache'] as $bin) {
-    \Drupal::service("cache.$bin")->deleteAll();
+namespace Drupal\your_module\Plugin\Block;
+
+use Drupal\Core\Block\BlockBase;
+use Drupal\Core\Form\FormInterface;
+use Drupal\Core\Form\FormStateInterface;
+
+/**
+ * Provides a 'Custom Form' Block.
+ *
+ * @Block(
+ *   id = "custom_form_block",
+ *   admin_label = @Translation("Custom Form Block")
+ * )
+ */
+class CustomFormBlock extends BlockBase {
+
+  public function build() {
+    // Replace with your form class.
+    return \Drupal::formBuilder()->getForm('Drupal\your_module\Form\CustomExampleForm');
   }
+
 }
-
-
-protected function refreshThemeConfig(): void {
-  \Drupal::service('config.factory')->reset('system.theme.global');
-  \Drupal::service('theme_handler')->refreshInfo();
-  \Drupal::service('theme.manager')->resetActiveTheme();
-}
-
-\Drupal::service('theme.manager')->resetActiveTheme();
-\Drupal::service('theme_handler')->refreshInfo();
-\Drupal::service('config.factory')->reset('system.theme.global');
-\Drupal::service('cache.render')->deleteAll();
-\Drupal::service('cache.page')->deleteAll();
-\Drupal::service('cache.dynamic_page_cache')->deleteAll();
