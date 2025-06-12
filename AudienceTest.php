@@ -1,5 +1,13 @@
-const through = require('through2');
-
+/**
+ * Gulp transform stream that ensures a trailing newline is present
+ * at the end of CSS files. This is useful because Dart Sass (used in
+ * gulp-sass 6+) removes trailing blank lines when using compressed output.
+ *
+ * This function checks if the file buffer ends with a newline, and if not,
+ * it appends one. It only operates on buffer-based files (not streams).
+ *
+ * @returns {Stream.Transform} A through2 transform stream for Gulp pipelines.
+ */
 function addTrailingNewline() {
   return through.obj(function (file, _, cb) {
     if (file.isBuffer()) {
@@ -10,21 +18,4 @@ function addTrailingNewline() {
     }
     cb(null, file);
   });
-}
-
-function sass(src = options.files.sass, dest = options.paths.build + 'css/', ship = false) {
-  options.sass.style = (ship ? 'compressed' : 'expanded');
-  return gulp.src(src)
-    .pipe($.sassGlob())
-    .pipe($.if(!ship, $.sourcemaps.init()))
-    .pipe(gulpSass(options.sass)
-      .on('error', function (e) {
-        process.stderr.write(new PluginError('sass', e.messageFormatted).toString() + '\n');
-        if (!ship) { this.emit('end'); }
-      })
-    )
-    .pipe(postcss([autoprefixer(AUTOPREFIXER_BROWSERS)]))
-    .pipe(addTrailingNewline()) // 👈 Add this line
-    .pipe($.if(!ship, $.sourcemaps.write()))
-    .pipe(gulp.dest(dest));
 }
