@@ -11,7 +11,7 @@ use Drupal\path_alias\Entity\PathAlias;
 use Drupal\redirect\Entity\Redirect;
 
 /**
- * Tests checking Redirect.
+ * Tests redirect functionality.
  *
  * @group custom_module
  */
@@ -32,8 +32,7 @@ class RedirectTest extends BrowserTestBase {
    * Tests redirect functionality.
    */
   public function testCheckRedirect(): void {
-
-    // Disable automatic redirect following.
+    // Disable automatic redirect following so we can inspect headers.
     $this->getSession()->getDriver()->getClient()->followRedirects(FALSE);
 
     // Create a node programmatically.
@@ -42,18 +41,17 @@ class RedirectTest extends BrowserTestBase {
       'title' => 'Test Node',
     ]);
 
-    // Generate the canonical path and alias.
     $canonical_path = '/node/' . $node->id();
-    $alias = '/node/6';
+    $alias = '/test-alias';
 
-   // Create and save the alias using the PathAlias entity.
-   PathAlias::create([
-    'path' => $canonical_path,
-    'alias' => $alias,
-    'langcode' => 'en',
-  ])->save();
+    // Create and save the alias.
+    PathAlias::create([
+      'path' => $canonical_path,
+      'alias' => $alias,
+      'langcode' => 'en',
+    ])->save();
 
-    // Create and save the redirect using the Redirect entity.
+    // Create and save the redirect.
     Redirect::create([
       'redirect_source' => [
         'path' => ltrim($alias, '/'),
@@ -66,17 +64,29 @@ class RedirectTest extends BrowserTestBase {
       'status_code' => 301,
     ])->save();
 
-    // Visit the alias and check the redirect.
+    // Visit the alias.
     $this->getSession()->visit(Url::fromUserInput($alias)->toString());
-    $redirect_location = $this->getSession()->getResponseHeader('Location');
-    $this->assertNotNull($redirect_location, 'Redirect location is not null.');
 
-    // Assert that the redirect location matches the expected canonical path.
+    // Assert status code is 301.
+    $status_code = $this->getSession()->getStatusCode();
+    $this->assertEquals(301, $status_code, 'Redirect response returned 301.');
+
+    // Get Location header directly from Guzzle response.
+    $response = $this->getSession()->getDriver()->getClient()->getResponse();
+    $headers = $response->getHeaders();
+    $this->assertArrayHasKey('Location', $headers, 'Response has a Location header.');
+    $redirect_location = $headers['Location'][0];
+
+    // Assert the Location header matches canonical path.
     $this->assertEquals($canonical_path, $redirect_location);
+
+    // (Optional) Follow the redirect manually and assert the final page loads.
+    $this->getSession()->visit($redirect_location);
+    $this->assertSession()->statusCodeEquals(200);
+    $this->assertSession()->pageTextContains('Test Node');
 
     // Reset redirect following.
     $this->getSession()->getDriver()->getClient()->followRedirects(TRUE);
   }
 
 }
-
