@@ -25,9 +25,23 @@ class RedirectTest extends BrowserTestBase {
     'voya_core',
     'node',
     'path',
-    'path_alias',  // Needed for PathAlias entity.
+    'path_alias', // Needed for PathAlias entity.
     'redirect',
   ];
+
+  /**
+   * Helper: dump response content if something goes wrong.
+   */
+  protected function debugResponseOnFailure(): void {
+    $response = $this->getSession()->getDriver()->getClient()->getResponse();
+    $status = $this->getSession()->getStatusCode();
+    $body = $response->getContent();
+
+    fwrite(STDERR, "\n--- DEBUG RESPONSE ---\n");
+    fwrite(STDERR, "Status code: $status\n");
+    fwrite(STDERR, "Body:\n$body\n");
+    fwrite(STDERR, "----------------------\n");
+  }
 
   /**
    * Tests redirect functionality.
@@ -63,8 +77,14 @@ class RedirectTest extends BrowserTestBase {
     // Visit alias.
     $this->getSession()->visit(Url::fromUserInput($alias)->toString());
 
-    // Assert status code is 301.
-    $this->assertEquals(301, $this->getSession()->getStatusCode());
+    // Get the status code.
+    $status_code = $this->getSession()->getStatusCode();
+
+    if ($status_code !== 301) {
+      $this->debugResponseOnFailure();
+    }
+
+    $this->assertEquals(301, $status_code, 'Redirect response returned 301.');
 
     // Get Location header.
     $response = $this->getSession()->getDriver()->getClient()->getResponse();
