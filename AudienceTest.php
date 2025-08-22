@@ -2,158 +2,81 @@
 
 declare(strict_types=1);
 
-namespace Drupal\Tests\voya_security\Functional;
+namespace Drupal\Tests\voya_core\Functional;
 
+use Drupal\Core\Url;
 use Drupal\Tests\BrowserTestBase;
-use Drupal\user\Entity\User;
-use Drupal\voya_security\SecurityModule;
 use Voya\Drupal\Tests\VoyaTestTrait;
+use Drupal\path_alias\Entity\PathAlias;
+use Drupal\redirect\Entity\Redirect;
 
 /**
- * Functional tests of the voya_security module.
+ * Tests checking Redirect.
  *
- * @group voya_security
+ * @group custom_module
  */
-class SecurityTest extends BrowserTestBase {
+class RedirectTest extends BrowserTestBase {
   use VoyaTestTrait;
 
   /**
    * {@inheritdoc}
    */
-  protected static $modules = ['voya_security'];
+  protected static $modules = [
+    'voya_core',
+    'node',
+    'path',
+    'redirect',
+  ];
 
   /**
-   * Run voya_security functional tests with a single install to save time.
+   * Tests redirect functionality.
    */
-  public function testSecurity(): void {
-    $this->runAutocompleteTest();
-    $this->runRolesPermissionsTweaksTest();
-    $this->runSsoTest();
-    $this->runMaintenanceModeTest();
-    $this->runPasswordResetPageTest();
-    // Run last b/c this installs another module.
-    $this->runPermissionsTest();
-  }
+  public function testCheckRedirect(): void {
 
-  /**
-   * Ensure username/password fields have autocomplete off on them.
-   *
-   * @covers ::voya_security_form_user_login_form_alter
-   */
-  protected function runAutocompleteTest(): void {
-    // As an anonymous user, get the login page.
-    $this->drupalGet('/user');
-    // Ensure that the username/password field have autocomplete=off.
-    $this->assertSession()->elementExists('xpath', '//input[@name="name" and @autocomplete="off"]');
-    $this->assertSession()->elementExists('xpath', '//input[@name="pass" and @autocomplete="off"]');
-  }
+    // Disable automatic redirect following.
+    $this->getSession()->getDriver()->getClient()->followRedirects(FALSE);
 
-  /**
-   * Ensure users with "administer roles" can add roles to new users.
-   *
-   * @covers ::voya_security_form_user_register_form_alter
-   */
-  protected function runRolesPermissionsTweaksTest(): void {
-    $this->drupalLogin($this->drupalCreateUser(['administer users']));
+    // Create a node programmatically.
+    $node = $this->createNode([
+      'type' => 'article',
+      'title' => 'Test Node',
+    ]);
 
-    // Make sure I can see roles here, and I can give them to a user.
-    $this->drupalGet('admin/people/create');
-    $this->assertSession()->elementTextContains('xpath', '//fieldset[@data-drupal-selector="edit-roles"]/legend', 'Roles');
-    // Do the same for the user edit form.
-    $this->drupalGet('user/1/edit');
-    $this->assertSession()->elementTextContains('xpath', '//fieldset[@data-drupal-selector="edit-roles"]/legend', 'Roles');
+    // Generate the canonical path and alias.
+    $canonical_path = '/node/' . $node->id();
+    $alias = '/node/6';
 
-    $this->drupalLogout();
-  }
+   // Create and save the alias using the PathAlias entity.
+   PathAlias::create([
+    'path' => $canonical_path,
+    'alias' => $alias,
+    'langcode' => 'en',
+  ])->save();
 
-  /**
-   * Ensure the site_builder permissions are in place as expected.
-   */
-  protected function runPermissionsTest(): void {
-    // Install the block module to test the permissions.
-    $this->container->get('module_installer')->install(['voya_core','system']);
+    // Create and save the redirect using the Redirect entity.
+    Redirect::create([
+      'redirect_source' => [
+        'path' => ltrim($alias, '/'),
+        'query' => [],
+      ],
+      'redirect_redirect' => [
+        'uri' => 'internal:' . $canonical_path,
+      ],
+      'language' => 'en',
+      'status_code' => 301,
+    ])->save();
 
-    $this->drupalLogin($this->personaSiteOwner());
+    // Visit the alias and check the redirect.
+    $this->getSession()->visit(Url::fromUserInput($alias)->toString());
+    $redirect_location = $this->getSession()->getResponseHeader('Location');
+    $this->assertNotNull($redirect_location, 'Redirect location is not null.');
 
-    // Ensure user cannot get to the block admin page.
-    $this->drupalGet('admin/structure/block');
-    $this->assertSession()->statusCodeEquals(403);
+    // Assert that the redirect location matches the expected canonical path.
+    $this->assertEquals($canonical_path, $redirect_location);
 
-    // Ensure user can get to the reports page.
-    $this->drupalGet('admin/reports');
-    $this->assertSession()->statusCodeEquals(200);
-
-    // Ensure a user can edit a block provided by voya_core, for example.
-    $block = $this->drupalPlaceBlock('voya_header');
-    $this->drupalGet('admin/structure/block/manage/' . $block->id());
-    // @todo I don't believe this test is working correctly.
-    // User gets access b/c of "administer blocks" permission.
-    $this->assertSession()->statusCodeEquals(200);
-
-    $this->drupalLogout();
-  }
-
-  /**
-   * Test configuration related to SSO.
-   */
-  protected function runSsoTest(): void {
-    // Check if the SimpleSAMLphp auth link is shown on the login form.
-    $this->drupalGet('user/login');
-    $this->assertSession()->pageTextContains('Voya employee login');
-    $this->clickLink('Voya employee login');
-
-    /*
-     * Our default local test user should be an admin.
-     *
-     * @see src/Drupal/simplesamlphp/config/authsources.php
-     */
-    $john_doe = User::load(3);
-    $this->assertTrue($john_doe->hasRole('administrator'));
-    $this->assertTrue($john_doe->hasRole('employee'));
-    // Check if there's a cookie set after a user logs in.
-    $this->assertEquals(TRUE, $this->getSession()->getCookie(SecurityModule::COOKIE_NAME_AUTHENTICATED));
-    $this->drupalGet('/user/');
-    $this->assertSession()->addressEquals('/user/3');
-    // Make sure the SAML attributes are mapped appropriately to the fields.
-    $this->assertEquals("John Doe", $john_doe->field_full_name->value);
-
-    $this->drupalLogout();
-  }
-
-  /**
-   * Check if a contributor can log in while maintenance mode is enabled.
-   */
-  protected function runMaintenanceModeTest(): void {
-    // Set site into maintenance mode.
-    \Drupal::state()->set('system.maintenance_mode', TRUE);
-
-    // Log in as a contributor.
-    $user = $this->drupalCreateUser();
-    $user->addRole('contributor');
-    $user->save();
-    $this->drupalLogin($user);
-
-    // Make sure we can access the site while in maintenance mode.
-    $this->drupalGet('admin/content');
-    $this->assertSession()->statusCodeEquals(200);
-    $this->assertSession()->pageTextNotContains('Drupal is currently under maintenance. We should be back shortly. Thank you for your patience.');
-
-    // Turn off maintenance mode (so other tests can run).
-    \Drupal::state()->set('system.maintenance_mode', FALSE);
-
-    $this->drupalLogout();
-  }
-
-  /**
-   * Test custom Voya password reset controller.
-   */
-  protected function runPasswordResetPageTest(): void {
-    $timestamp = $this->container->get('datetime.time')->getRequestTime() - 1;
-    $account = $this->drupalCreateUser();
-    $this->drupalGet("user/reset/" . $account->id() . "/$timestamp/" . user_pass_rehash($account, $timestamp) . '/login');
-    $this->assertSession()->pageTextContains("You have used a one-time login link. You can set your new password now.");
-    $this->drupalLogout();
-    // @todo Add a test for the User1/Prod email functionality.
+    // Reset redirect following.
+    $this->getSession()->getDriver()->getClient()->followRedirects(TRUE);
   }
 
 }
+
