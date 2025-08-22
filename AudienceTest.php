@@ -25,20 +25,9 @@ class RedirectTest extends BrowserTestBase {
     'voya_core',
     'node',
     'path',
-    'path_alias',
+    'path_alias',  // Needed for PathAlias entity.
     'redirect',
   ];
-
-  /**
-   * {@inheritdoc}
-   */
-  protected function setUp(): void {
-    parent::setUp();
-    $this->installEntitySchema('node');
-    $this->installEntitySchema('path_alias');
-    $this->installEntitySchema('redirect');
-    $this->installConfig(['redirect']);
-  }
 
   /**
    * Tests redirect functionality.
