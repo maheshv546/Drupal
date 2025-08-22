@@ -9,6 +9,7 @@ use Drupal\Tests\BrowserTestBase;
 use Voya\Drupal\Tests\VoyaTestTrait;
 use Drupal\path_alias\Entity\PathAlias;
 use Drupal\redirect\Entity\Redirect;
+use Drupal\node\Entity\NodeType;
 
 /**
  * Tests redirect functionality.
@@ -25,9 +26,24 @@ class RedirectTest extends BrowserTestBase {
     'voya_core',
     'node',
     'path',
-    'path_alias', // Needed for PathAlias entity.
+    'path_alias',
     'redirect',
   ];
+
+  /**
+   * {@inheritdoc}
+   */
+  protected function setUp(): void {
+    parent::setUp();
+
+    // Ensure 'article' content type exists.
+    if (!NodeType::load('article')) {
+      NodeType::create([
+        'type' => 'article',
+        'name' => 'Article',
+      ])->save();
+    }
+  }
 
   /**
    * Helper: dump response content if something goes wrong.
@@ -77,13 +93,11 @@ class RedirectTest extends BrowserTestBase {
     // Visit alias.
     $this->getSession()->visit(Url::fromUserInput($alias)->toString());
 
-    // Get the status code.
+    // Assert status code is 301.
     $status_code = $this->getSession()->getStatusCode();
-
     if ($status_code !== 301) {
       $this->debugResponseOnFailure();
     }
-
     $this->assertEquals(301, $status_code, 'Redirect response returned 301.');
 
     // Get Location header.
