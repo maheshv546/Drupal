@@ -12,3 +12,4 @@ Introduces RedirectPathProcessorManager which customizes how inbound paths are p
 	•	The new manager allows keeping the alias itself as a possible redirect source, depending on allow_from_alias.
 	•	It collects both system paths and aliases as candidates and passes them to the repository.
 
+This patch adds opt-in support for redirects from URL aliases, fixes alias-related redirect issues, and updates tests + services to support this new behavior.
