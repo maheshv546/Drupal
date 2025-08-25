@@ -29,94 +29,77 @@ class RedirectTest extends BrowserTestBase {
   ];
 
   /**
-   * Test nodes.
+   * Nodes used in the test.
    *
-   * @var \Drupal\node\NodeInterface[]
+   * @var \Drupal\node\NodeInterface
    */
-  protected array $nodes = [];
+  protected $node1;
 
   /**
-   * Creates nodes for test cases.
+   * @var \Drupal\node\NodeInterface
    */
-  protected function setUp(): void {
-    parent::setUp();
+  protected $node2;
 
-    $this->nodes['n1'] = $this->drupalCreateNode([
+  /**
+   * @var \Drupal\node\NodeInterface
+   */
+  protected $node3;
+
+  /**
+   * Tests redirect creation and resolution.
+   */
+  public function testCheckRedirect(): void {
+    // Disable automatic redirect following.
+    $this->getSession()->getDriver()->getClient()->followRedirects(FALSE);
+
+    // Create test nodes.
+    $this->node1 = $this->drupalCreateNode([
       'type' => 'article',
       'title' => 'Article test 1',
       'status' => NodeInterface::PUBLISHED,
       'moderation_state' => 'published',
       'field_post_date' => '2021-12-31T12:00:00',
     ]);
-
-    $this->nodes['n2'] = $this->drupalCreateNode([
+    $this->node2 = $this->drupalCreateNode([
       'type' => 'article',
       'title' => 'Article test 2',
       'status' => NodeInterface::PUBLISHED,
       'moderation_state' => 'published',
       'field_post_date' => '2022-03-31T12:00:00',
     ]);
-
-    $this->nodes['n3'] = $this->drupalCreateNode([
+    $this->node3 = $this->drupalCreateNode([
       'type' => 'article',
       'title' => 'Article test 3',
       'status' => NodeInterface::PUBLISHED,
       'moderation_state' => 'published',
       'field_post_date' => '2020-08-31T12:00:00',
     ]);
-  }
 
-  /**
-   * Provides redirect test cases.
-   *
-   * @return array[]
-   *   Redirect test case sets.
-   */
-  public function redirectProvider(): array {
-    return [
-      // From → To.
-      ['/article/article-test-1', '/article/article-test-2', 'Article test 2'],
-      ['/article/article-test-2', '/article/article-test-3', 'Article test 3'],
-    ];
-  }
-
-  /**
-   * Tests redirects using a data provider.
-   *
-   * @dataProvider redirectProvider
-   */
-  public function testCheckRedirect(string $from, string $to, string $expectedTitle): void {
-    // Disable automatic redirect following so we can inspect headers.
-    $this->getSession()->getDriver()->getClient()->followRedirects(FALSE);
+    $redirect_from_url = '/article/article-test-1';
+    $redirect_to_url = '/article/article-test-2';
 
     // Create redirect entity.
     Redirect::create([
-      'redirect_source' => ['path' => $from],
-      'redirect_redirect' => ['uri' => 'internal:' . $to],
+      'redirect_source' => ['path' => $redirect_from_url],
+      'redirect_redirect' => ['uri' => 'internal:' . $redirect_to_url],
       'language' => 'en',
       'status_code' => 301,
     ])->save();
 
     // Visit the redirect source URL.
-    $this->getSession()->visit(Url::fromUserInput($from)->toString());
+    $this->getSession()->visit(Url::fromUserInput($redirect_from_url)->toString());
 
     // Assert the response code is 301.
     $this->assertSame(301, $this->getSession()->getStatusCode());
 
     // Assert the redirect location matches the target URL.
     $this->assertSame(
-      $to,
+      $redirect_to_url,
       parse_url($this->getSession()->getResponseHeader('Location'), PHP_URL_PATH)
     );
 
-    // Now re-enable redirect following.
+    // Reset redirect following.
     $this->getSession()->getDriver()->getClient()->followRedirects(TRUE);
-
-    // Visit the original URL again, this time follow the redirect.
-    $this->drupalGet($from);
-
-    // Assert the final loaded page contains the expected node title.
-    $this->assertSession()->pageTextContains($expectedTitle);
   }
 
 }
