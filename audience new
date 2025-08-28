@@ -1,10 +1,10 @@
-1. Check Ckeditor when the module update happens.
-2. Adding multiple blocks( Hero, Video using Ckeditor) in a page using layout builder.
-3. Adding Media item local file, External file, Youtube video etc..
-4. Regarding how to Request access to drupal and steps followed in service now.
-5. Once the access is provided to drupal site we will be able to login.
-6. Regarding URL Redirect RITM request
-7. We can add the URL redirect in live as specified in the Service now ticket.
-8. Due to Redirect module issue for now we will be using node ids instead of url alias while adding redirect.
-9. During major releases we will pull down the database from live to lower environments.
-10. For voya.com site only redirects servicenow tickets will be assigned to AM team.
+Ckeditor will be checked and verified whenever a module update occurs.
+	2.	Multiple blocks (e.g., Hero, Video) can be added to a page using Layout Builder through Ckeditor integration.
+	3.	Media items can be added, including local files, external files, and YouTube videos.
+	4.	Access to Drupal needs to be requested via ServiceNow. The required steps are documented and must be followed.
+	5.	Once access is granted, users will be able to log in to the Drupal site.
+	6.	URL Redirect requests should be submitted through ServiceNow (RITM request).
+	7.	URL redirects can be added directly on the live site, as specified in the ServiceNow ticket.
+	8.	Due to an issue with the Redirect module, we will use node IDs instead of URL aliases while adding redirects (until the issue is resolved).
+	9.	During major releases, the live database will be pulled down and synced with lower environments.
+	10.	For voya.com, only Redirect-related ServiceNow tickets will be handled by the AM team.
