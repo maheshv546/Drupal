@@ -1,15 +1,10 @@
-New Config Setting
-	•	Adds a new option in redirect.settings.yml:
-
-allow_from_alias: true
-
-By default, redirects from aliases are not allowed (to prevent problems like redirecting an alias that already points to a real node).
-	•	A checkbox is added to the Redirect settings UI to enable it:
-“Allow redirects from aliases.”
-
-Introduces RedirectPathProcessorManager which customizes how inbound paths are processed:
-	•	Normally, Drupal replaces aliases with their system path (e.g., /about-us → /node/1) before checking for redirects.
-	•	The new manager allows keeping the alias itself as a possible redirect source, depending on allow_from_alias.
-	•	It collects both system paths and aliases as candidates and passes them to the repository.
-
-This patch adds opt-in support for redirects from URL aliases, fixes alias-related redirect issues, and updates tests + services to support this new behavior.
+1. Check Ckeditor when the module update happens.
+2. Adding multiple blocks( Hero, Video using Ckeditor) in a page using layout builder.
+3. Adding Media item local file, External file, Youtube video etc..
+4. Regarding how to Request access to drupal and steps followed in service now.
+5. Once the access is provided to drupal site we will be able to login.
+6. Regarding URL Redirect RITM request
+7. We can add the URL redirect in live as specified in the Service now ticket.
+8. Due to Redirect module issue for now we will be using node ids instead of url alias while adding redirect.
+9. During major releases we will pull down the database from live to lower environments.
+10. For voya.com site only redirects servicenow tickets will be assigned to AM team.
