@@ -1,17 +1,33 @@
-Drupal voya site code structure
+Drupal Voya Site Code Structure
+The `.github` folder contains all the workflow actions.
 
-1. .github - has all the workflow actions.
-2. Workflow - All workflow related files are there in this folder.
-3. First call in drupal will go to index.php then it will be routed to all other files.
-4. Core folder has all the drupal core related modules, themes etc..
-5. Modules has two folders one is contrib where the modules are provided from drupal.org and other one custom where the modules are created by us.
-6. sites.php file is used to support multisite architecture.
+The `workflow` folder holds all workflow-related files.
 
-Resource center site
+The first request in Drupal is handled by `index.php`, which routes it to other files.
 
-1. We have usually two content related changes one is Type of Investor updates other one Uploading images. 
-2. First we need to make the changes in accp site for content chnages, once done send for validation through servicenow.
-3. Inorder to update Investror typre content we need to go admin/config/voya-fs/investor_type
-4. Effective date in the document is the one specifies when the chnages to be done on live site. 
-5. Inorder Add images go to Add media->image.
-6. Once the image is added we can send the image path by going to Edit->take the url of the image->Copy the addres and send the image path in servicenow. 
+The `core` folder contains all Drupal core modules, themes, and related files.
+
+The `modules` folder has two subfolders:
+
+- `contrib`: contains contributed modules from drupal.org.
+
+- `custom`: contains custom modules developed by us.
+
+The `sites.php` file is used to support multisite architecture.
+
+Resource Center Site
+We usually make two types of content-related changes:
+
+- Updates to the “Type of Investor.”
+
+- Uploading images.
+
+First, make the changes in the ACCP site, and once completed, send them for validation through ServiceNow.
+
+To update the Investor Type content, go to: `admin/config/voya-fs/investor_type`
+
+The “Effective Date” mentioned in the document specifies when the changes should be applied to the live site.
+
+To add images, navigate to: `Add media -> Image`.
+
+After adding the image, go to `Edit`, copy the image URL from the address bar, and send the image path in ServiceNow.
