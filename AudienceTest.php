@@ -1,20 +1,16 @@
-function voya_deep_content_views_post_render(ViewExecutable $view, array &$output, CachePluginBase $cache): void {
-  if ($view->id() !== 'deep_content') {
+function voya_deep_content_views_pre_view(ViewExecutable $view, string $display_id, array &$args): void {
+  $viewId = $view->id();
+  if ($viewId !== 'deep_content') {
     return;
   }
-
-  $textResponse = $output['#markup']->jsonSerialize();
-  $newText = $textResponse;
-  $newText = str_replace('"{\\', '{', $newText);
-  $newText = str_replace('}"', '}', $newText);
-  $newText = str_replace('\\"', '"', $newText);
-  $newText = str_replace("\u0022", '"', $newText);
-  $newText = str_replace("u0022", '"', $newText);
-  $newText = str_replace("\u0027", '\'', $newText);
-
-  $newText = DeepContentModule::filterDeepContentViewsOutput($newText);
-
-  $output['#markup'] = $newText;
+  // IF RESOURCE NAME IS PASSED, SWAP IT FOR RESOURCE ID.
+  $tagsHelper = \Drupal::service('voya_deep_content.tags_helper');
+  $tagsHelper->load();
+  $resourceId = $tagsHelper->tags['RESOURCES'][strtoupper($args[0])];
+  if ($resourceId) {
+    $args[0] = $resourceId;
+  }
 }
 
-Error: Call to a member function jsonSerialize() on null in voya_deep_content_views_post_render() (line 140 of /app/docroot/sites/resourcecenter/modules/voya_deep_content/voya_deep_content.module)
+Exception: Warning: Undefined array key ""
+voya_deep_content_views_pre_view()() (Line: 94)
