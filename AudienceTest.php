@@ -6,6 +6,7 @@ namespace Drupal\voya_blocks_content;
 
 use Drupal\Core\Access\AccessResult;
 use Drupal\Core\DependencyInjection\ContainerInjectionInterface;
+use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\Routing\RouteMatchInterface;
 use Drupal\Core\Session\AccountInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
@@ -16,10 +17,9 @@ use Symfony\Component\DependencyInjection\ContainerInterface;
 class AccessControlHandler implements ContainerInjectionInterface {
 
   /**
-   * @var \Drupal\block_content\Entity\BlockContentType[]
-   *   An array of block content type entities.
+   * The entity type manager.
    */
-  protected array $blockContentTypes;
+  protected EntityTypeManagerInterface $entityTypeManager;
 
   /**
    * The current route match.
@@ -27,114 +27,82 @@ class AccessControlHandler implements ContainerInjectionInterface {
   protected RouteMatchInterface $currentRouteMatch;
 
   /**
-   * The current user service.
+   * The current user.
    */
   protected AccountInterface $currentUser;
 
   /**
+   * Cached block content type IDs.
+   *
+   * @var string[]
+   */
+  protected array $blockContentTypeIds = [];
+
+  /**
    * {@inheritdoc}
    */
-  public static function create(ContainerInterface $container) {
+  public static function create(ContainerInterface $container): static {
     return new static(
-      $container->get('current_route_match')
+      $container->get('entity_type.manager'),
+      $container->get('current_route_match'),
+      $container->get('current_user')
     );
   }
 
   /**
-   * Constructs the block content access control handler instance.
-   *
-   * @param \Drupal\Core\Routing\RouteMatchInterface $currentRouteMatch
-   *   Route match interface.
+   * Constructs the access control handler.
    */
-  public function __construct(RouteMatchInterface $currentRouteMatch) {
-    $this->currentRouteMatch = $currentRouteMatch;
+  public function __construct(
+    EntityTypeManagerInterface $entity_type_manager,
+    RouteMatchInterface $current_route_match,
+    AccountInterface $current_user
+  ) {
+    $this->entityTypeManager = $entity_type_manager;
+    $this->currentRouteMatch = $current_route_match;
+    $this->currentUser = $current_user;
   }
 
   /**
-   * Returns the service container.
+   * Returns the block content type IDs.
    *
-   * This method is marked private to prevent sub-classes from retrieving
-   * services from the container through it. Instead,
-   * \Drupal\Core\DependencyInjection\ContainerInjectionInterface should be used
-   * for injecting services.
-   *
-   * @return \Symfony\Component\DependencyInjection\ContainerInterface
-   *   The service container.
-   */
-  private function container(): ContainerInterface {
-    return \Drupal::getContainer();
-  }
-
-  /**
-   * Returns the block content types.
-   *
-   * @return array
-   *   The block content types.
+   * @return string[]
+   *   The block content type IDs.
    */
   protected function blockContentTypes(): array {
-    if (!$this->blockContentTypes) {
-      $this->blockContentTypes = \Drupal::entityQuery('block_content_type')
-        ->accessCheck(TRUE)
-        ->execute();
+    if (empty($this->blockContentTypeIds)) {
+      $storage = $this->entityTypeManager->getStorage('block_content_type');
+      $this->blockContentTypeIds = array_keys($storage->loadMultiple());
     }
-    return $this->blockContentTypes;
-  }
-
-  /**
-   * Returns the current user.
-   *
-   * @return \Drupal\Core\Session\AccountInterface
-   *   The current user.
-   */
-  protected function currentUser(): AccountInterface {
-    if (!$this->currentUser) {
-      $this->currentUser = $this->container()->get('current_user');
-    }
-    return $this->currentUser;
+    return $this->blockContentTypeIds;
   }
 
   /**
    * Access check for the block content type administer pages and forms.
-   *
-   * @return \Drupal\Core\Access\AccessResult
-   *   An access result.
    */
   public function blockContentTypeAdministerAccess(): AccessResult {
-    $account = $this->currentUser();
-    return AccessResult::allowedIfHasPermission($account, 'administer block content types');
+    return AccessResult::allowedIfHasPermission($this->currentUser, 'administer block content types');
   }
 
   /**
    * Access check for the block content add page.
-   *
-   * @return \Drupal\Core\Access\AccessResult
-   *   An access result.
    */
   public function blockContentAddPageAccess(): AccessResult {
-    $orPermissions = [];
+    $permissions = [];
     foreach ($this->blockContentTypes() as $bundle_type) {
-      $orPermissions[] = "create $bundle_type block content";
+      $permissions[] = "create $bundle_type block content";
     }
-    $account = $this->currentUser();
-    return AccessResult::allowedIfHasPermissions($account, $orPermissions, 'OR');
+    return AccessResult::allowedIfHasPermissions($this->currentUser, $permissions, 'OR');
   }
 
   /**
    * Access check for the block content add forms.
-   *
-   * @return \Drupal\Core\Access\AccessResult
-   *   An access result.
    */
   public function blockContentAddFormAccess(RouteMatchInterface $route_match): AccessResult {
-    if ($block_content_type = $route_match->getParameter('block_content_type')) {
-      $bundle_type = $block_content_type->get('id');
-      $account = $this->currentUser();
-      return AccessResult::allowedIfHasPermission($account, "create $bundle_type block content");
+    $block_content_type = $route_match->getParameter('block_content_type');
+    if ($block_content_type && $block_content_type->id()) {
+      return AccessResult::allowedIfHasPermission($this->currentUser, "create {$block_content_type->id()} block content");
     }
     return AccessResult::neutral();
   }
 
 }
-
-
-Error: Typed property Drupal\voya_blocks_content\AccessControlHandler::$currentUser must not be accessed before initialization in Drupal\voya_blocks_content\AccessControlHandler->currentUser() (line 90 of modules/custom/blocks/voya_blocks/modules/voya_blocks_content/src/AccessControlHandler.php)
