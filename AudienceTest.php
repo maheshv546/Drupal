@@ -135,3 +135,6 @@ class AccessControlHandler implements ContainerInjectionInterface {
   }
 
 }
+
+
+Error: Typed property Drupal\voya_blocks_content\AccessControlHandler::$currentUser must not be accessed before initialization in Drupal\voya_blocks_content\AccessControlHandler->currentUser() (line 90 of modules/custom/blocks/voya_blocks/modules/voya_blocks_content/src/AccessControlHandler.php)
