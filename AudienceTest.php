@@ -12,30 +12,23 @@ use Drupal\Core\Session\AccountInterface;
 
 /**
  * Implements hook_ENTITY_TYPE_create_access().
+ *
+ * @param \Drupal\Core\Session\AccountInterface $account
+ *   The user account to check access for.
+ * @param array $context
+ *   The context of the access check.
+ * @param string|null $entity_bundle
+ *   The bundle of the block content entity, if known.
+ *
+ * @return \Drupal\Core\Access\AccessResult
+ *   The access result indicating if creation is allowed.
  */
-function voya_blocks_content_block_content_create_access(AccountInterface $account, array $context, $entity_bundle) {
+function voya_blocks_content_block_content_create_access(AccountInterface $account, array $context, ?string $entity_bundle): AccessResult {
   // Check 'create' permission for block content types.
-  // Needed for inline form creation of block content (ex. Inline Entity Form).
-  if ($account->hasPermission("create $entity_bundle block content")) {
+  // Needed for inline form creation of block content (e.g., Inline Entity Form).
+  if ($entity_bundle !== NULL && $account->hasPermission("create $entity_bundle block content")) {
     return AccessResult::allowed();
   }
-  else {
-    return AccessResult::forbidden();
-  }
+
+  return AccessResult::forbidden();
 }
-
-
-FILE: ...ya_blocks/modules/voya_blocks_content/voya_blocks_content.module
-----------------------------------------------------------------------
-FOUND 2 ERRORS AFFECTING 1 LINE
-----------------------------------------------------------------------
- 16 | ERROR | Function
-    |       | voya_blocks_content_block_content_create_access() does
-    |       | not have parameter type hint nor @param annotation for
-    |       | its parameter $entity_bundle.
-    |       | (SlevomatCodingStandard.TypeHints.ParameterTypeHint.MissingAnyTypeHint)
- 16 | ERROR | Function
-    |       | voya_blocks_content_block_content_create_access() does
-    |       | not have return type hint nor @return annotation for
-    |       | its return value.
-    |       | (SlevomatCodingStandard.TypeHints.ReturnTypeHint.MissingAnyTypeHint)
