@@ -1,24 +1,89 @@
 <?php
 
-/**
- * @file
- * Voya Block content module.
- */
-
 declare(strict_types=1);
 
-use Drupal\Core\Access\AccessResult;
-use Drupal\Core\Session\AccountInterface;
+namespace Drupal\voya_search\Service;
+
+use Drupal\Core\Messenger\MessengerTrait;
+use Drupal\search_api\Entity\Index;
+use Drupal\search_api\IndexBatchHelper;
+use Drupal\search_api\Utility\FieldsHelperInterface;
 
 /**
- * Implements hook_ENTITY_TYPE_create_access().
+ * Class SearchApiUtility.
+ *
+ * Helper for our SAPI implementation.
  */
-function voya_blocks_content_block_content_create_access(AccountInterface $account, array $context, ?string $entity_bundle): AccessResult {
-  // Allow creation if the user has the specific bundle create permission.
-  // Needed for inline form creation of block content (e.g., Inline Entity Form).
-  if ($entity_bundle !== NULL && $account->hasPermission("create $entity_bundle block content")) {
-    return AccessResult::allowed();
+class SearchApiUtility {
+  use MessengerTrait;
+
+  /**
+   * SearchApiUtility constructor.
+   *
+   * @param \Drupal\search_api\Utility\FieldsHelperInterface $fieldsHelper
+   *   Search API fields helper.
+   */
+  public function __construct(protected FieldsHelperInterface $fieldsHelper) {}
+
+  /**
+   * Add fields to an index.
+   *
+   * @param array $fields
+   *   Array with keys: 'label', 'property_path' and 'type'.
+   * @param string $index
+   *   Index id.
+   * @param string $datasource_id
+   *   Datasource id.
+   */
+  public function addFieldsToIndex(array $fields, string $index = 'content', string $datasource_id = 'entity:node'): void {
+    $index = Index::load($index);
+    if ($index) {
+      foreach ($fields as $key => $info) {
+        $info += ['datasource_id' => $datasource_id];
+        $field = $this->fieldsHelper->createField($index, $key, $info);
+        // Ensure we don't overwrite an existing field.
+        if (is_null($index->getField($key))) {
+          $index->addField($field);
+        }
+      }
+      $index->save();
+    }
   }
 
-  return AccessResult::forbidden();
+  /**
+   * Rebuild the search index.
+   *
+   * @param array $sandbox
+   *   The batch processor.
+   * @param string $index_id
+   *   Search API index id.
+   */
+  public function reindexSearchApi(array &$sandbox, string $index_id = 'content'): void {
+    $index = Index::load($index_id);
+    // Clear the index in the first batch run.
+    if (!isset($sandbox['status'])) {
+      $index->clear();
+      $sandbox['status'] = 'reset';
+    }
+
+    // Index all items in batches of 250.
+    // This takes the $sandbox param as $context.
+    IndexBatchHelper::process($index, 250, -1, -1, $sandbox);
+
+    // Helper format isn't QUITE right, so adjust.
+    $sandbox['#finished'] = $sandbox['finished'];
+
+    // Let CLI know when finished.
+    if ($sandbox['#finished'] === 1 && isset($sandbox['message'])) {
+      $this->messenger()->addStatus($sandbox['message']);
+    }
+  }
+
 }
+
+
+Call to method process() of deprecated class                                  
+         Drupal\search_api\IndexBatchHelper:                                           
+         in search_api:8.x-1.40 and is removed from search_api:2.0.0. Use              
+           the "search_api.indexing_batch_helper" service instead.                     
+         🪪  staticMethod.deprecatedClass 
