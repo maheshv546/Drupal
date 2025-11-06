@@ -6,15 +6,15 @@ namespace Drupal\voya_search\Service;
 
 use Drupal\Core\Messenger\MessengerTrait;
 use Drupal\search_api\Entity\Index;
-use Drupal\search_api\IndexBatchHelper;
 use Drupal\search_api\Utility\FieldsHelperInterface;
+use Drupal\search_api\Utility\IndexingBatchHelperInterface;
 
 /**
  * Class SearchApiUtility.
  *
  * Helper for our SAPI implementation.
  */
-class SearchApiUtility {
+final class SearchApiUtility {
   use MessengerTrait;
 
   /**
@@ -22,8 +22,13 @@ class SearchApiUtility {
    *
    * @param \Drupal\search_api\Utility\FieldsHelperInterface $fieldsHelper
    *   Search API fields helper.
+   * @param \Drupal\search_api\Utility\IndexingBatchHelperInterface $batchHelper
+   *   Search API indexing batch helper.
    */
-  public function __construct(protected FieldsHelperInterface $fieldsHelper) {}
+  public function __construct(
+    protected FieldsHelperInterface $fieldsHelper,
+    protected IndexingBatchHelperInterface $batchHelper,
+  ) {}
 
   /**
    * Add fields to an index.
@@ -42,7 +47,7 @@ class SearchApiUtility {
         $info += ['datasource_id' => $datasource_id];
         $field = $this->fieldsHelper->createField($index, $key, $info);
         // Ensure we don't overwrite an existing field.
-        if (is_null($index->getField($key))) {
+        if ($index->getField($key) === NULL) {
           $index->addField($field);
         }
       }
@@ -60,30 +65,25 @@ class SearchApiUtility {
    */
   public function reindexSearchApi(array &$sandbox, string $index_id = 'content'): void {
     $index = Index::load($index_id);
-    // Clear the index in the first batch run.
+    if (!$index) {
+      return;
+    }
+
+    // Clear the index on the first run.
     if (!isset($sandbox['status'])) {
       $index->clear();
       $sandbox['status'] = 'reset';
     }
 
-    // Index all items in batches of 250.
-    // This takes the $sandbox param as $context.
-    IndexBatchHelper::process($index, 250, -1, -1, $sandbox);
+    // Use the injected batch helper service.
+    $this->batchHelper->process($index, 250, -1, -1, $sandbox);
 
-    // Helper format isn't QUITE right, so adjust.
-    $sandbox['#finished'] = $sandbox['finished'];
+    // Adjust the finished flag for batch API.
+    $sandbox['#finished'] = $sandbox['finished'] ?? 1;
 
-    // Let CLI know when finished.
     if ($sandbox['#finished'] === 1 && isset($sandbox['message'])) {
       $this->messenger()->addStatus($sandbox['message']);
     }
   }
 
 }
-
-
-Call to method process() of deprecated class                                  
-         Drupal\search_api\IndexBatchHelper:                                           
-         in search_api:8.x-1.40 and is removed from search_api:2.0.0. Use              
-           the "search_api.indexing_batch_helper" service instead.                     
-         🪪  staticMethod.deprecatedClass 
