@@ -1,20 +1,261 @@
-Subject: Support Required for Managing Drupal Tasks and Drupal 11 Upgrade
+<?php
 
-Hi [Recipient’s Name],
+declare(strict_types=1);
 
-As an AM resource, it will be difficult for me to manage all the ongoing tasks alone. Currently, in the AM team, we don’t have any other Drupal resources to support these activities. The list of tasks includes:
-	1.	GitHub action tracking
-	2.	Log message monitoring
-	3.	GitHub issue tracking
-	4.	NPM updates
-	5.	Module and library updates
-	6.	Snyk issue resolution
-	7.	Drupal 11 upgrade
-	8.	Defect issue management
+namespace Drupal\voya_site_resourcecenter\Plugin\EntityBrowser\Widget;
 
-The Drupal 11 upgrade in particular should be handled by a dedicated Drupal resource. This task requires daily follow-up on issue queues, monitoring merge requests or patches, and identifying unsupported modules. If certain modules are not maintained on Drupal.org, we may need to remove them and develop custom solutions to maintain functionality.
+use Drupal\Core\Form\FormStateInterface;
+use Drupal\file\Plugin\Field\FieldType\FileItem;
+use Drupal\image\Plugin\Field\FieldType\ImageItem;
+use Drupal\media\MediaInterface;
+use Drupal\media\MediaTypeInterface;
+use Drupal\voya_site_resourcecenter\Element\AjaxUpload;
+use Drupal\voya_site_resourcecenter\MediaHelper;
 
-Managing all these tasks along with the upgrade effort will be difficult without additional support. Hence, I recommend assigning a dedicated Drupal resource to handle the Drupal 11 upgrade activities.
+/**
+ * An Entity Browser widget for creating media entities from uploaded files.
+ */
+class FileUpload extends EntityFormProxy {
 
-Regards,
-[Your Name]
+  /**
+   * {@inheritdoc}
+   */
+  protected function getCurrentValue(FormStateInterface $form_state): mixed {
+    $value = parent::getCurrentValue($form_state);
+    return $value['fid'] ?? NULL;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  protected function prepareEntities(array $form, FormStateInterface $form_state) {
+    $entities = parent::prepareEntities($form, $form_state);
+
+    $get_file = function (MediaInterface $entity) {
+      return MediaHelper::getSourceField($entity)->entity;
+    };
+
+    if ($this->configuration['return_file']) {
+      return array_map($get_file, $entities);
+    }
+    else {
+      return $entities;
+    }
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function getForm(array &$original_form, FormStateInterface $form_state, array $additional_widget_parameters) {
+    $form = parent::getForm($original_form, $form_state, $additional_widget_parameters);
+
+    $form['input'] = [
+      '#type' => 'ajax_upload',
+      '#title' => $this->t('File'),
+      '#required' => TRUE,
+      '#process' => [
+        [$this, 'processUploadElement'],
+      ],
+      '#upload_validators' => $this->getUploadValidators(),
+      '#weight' => 70,
+    ];
+
+    return $form;
+  }
+
+  /**
+   * Returns all applicable upload validators.
+   *
+   * @return array[]
+   *   A set of argument arrays for each upload validator, keyed by the upload
+   *   validator's function name.
+   */
+  protected function getUploadValidators(): array {
+    $validators = $this->configuration['upload_validators'];
+
+    // If the widget context didn't specify any file extension validation, add
+    // it as the first validator, allowing it to accept only file extensions
+    // associated with existing media bundles.
+    if (empty($validators['file_validate_extensions'])) {
+      return array_merge([
+        'file_validate_extensions' => [
+          implode(' ', $this->getAllowedFileExtensions()),
+        ],
+      ], $validators);
+    }
+    return $validators;
+  }
+
+  /**
+   * Returns all file extensions accepted by the allowed media types.
+   *
+   * @return string[]
+   *   The allowed file extensions.
+   */
+  protected function getAllowedFileExtensions(): array {
+    $extensions = '';
+
+    foreach ($this->getAllowedTypes() as $media_type) {
+      $extensions .= $media_type->getSource()
+        ->getSourceFieldDefinition($media_type)
+        ->getSetting('file_extensions') . ' ';
+    }
+    $extensions = preg_split('/,?\s+/', rtrim($extensions));
+
+    return array_unique($extensions);
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function validate(array &$form, FormStateInterface $form_state) {
+    $fid = $this->getCurrentValue($form_state);
+    if ($fid) {
+      parent::validate($form, $form_state);
+
+      $media = $this->getCurrentEntity($form_state);
+      if ($media) {
+        foreach ($this->validateFile($media) as $error) {
+          $form_state->setError($form['widget']['input'], $error);
+        }
+      }
+    }
+  }
+
+  /**
+   * Validates the file entity associated with a media item.
+   *
+   * @param \Drupal\media\MediaInterface $media
+   *   The media item.
+   *
+   * @return array[]
+   *   Any errors returned by file_validate().
+   */
+  protected function validateFile(MediaInterface $media): array {
+    $field = $media->getSource()
+      ->getSourceFieldDefinition($media->get('bundle')->entity)
+      ->getName();
+
+    /** @var \Drupal\file\Plugin\Field\FieldType\FileItem $item */
+    $item = $media->get($field)->first();
+
+    $validators = [
+      // It's maybe a bit overzealous to run this validator, but hey...better
+      // safe than screwed over by script kiddies.
+      'file_validate_name_length' => [],
+    ];
+    $validators = array_merge($validators, $item->getUploadValidators());
+    // This function is only called by the custom FileUpload widget, which runs
+    // file_validate_extensions before this function. So there's no need to
+    // validate the extensions again.
+    unset($validators['file_validate_extensions']);
+
+    // If this is an image field, add image validation. Against all sanity,
+    // this is normally done by ImageWidget, not ImageItem, which is why we
+    // need to facilitate this a bit.
+    if ($item instanceof ImageItem) {
+      // Validate that this is, indeed, a supported image.
+      $validators['file_validate_is_image'] = [];
+
+      $settings = $item->getFieldDefinition()->getSettings();
+      if ($settings['max_resolution'] || $settings['min_resolution']) {
+        $validators['file_validate_image_resolution'] = [
+          $settings['max_resolution'],
+          $settings['min_resolution'],
+        ];
+      }
+    }
+    return file_validate($item->entity, $validators);
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function submit(array &$element, array &$form, FormStateInterface $form_state) {
+    /** @var \Drupal\media\MediaInterface $entity */
+    $entity = $element['entity']['#entity'];
+
+    $file = MediaHelper::useFile(
+      $entity,
+      MediaHelper::getSourceField($entity)->entity
+    );
+    $file->setPermanent();
+    $file->save();
+    $entity->save();
+
+    $selection = [
+      $this->configuration['return_file'] ? $file : $entity,
+    ];
+    $this->selectEntities($selection, $form_state);
+  }
+
+  /**
+   * Processes the upload element.
+   *
+   * @param array $element
+   *   The upload element.
+   * @param \Drupal\Core\Form\FormStateInterface $form_state
+   *   The current form state.
+   *
+   * @return array
+   *   The processed upload element.
+   */
+  public function processUploadElement(array $element, FormStateInterface $form_state): array {
+    $element = AjaxUpload::process($element, $form_state);
+
+    $element['upload_button']['#ajax']['callback'] =
+    $element['remove']['#ajax']['callback'] = [static::class, 'ajax'];
+
+    $element['remove']['#value'] = $this->t('Cancel');
+
+    return $element;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function defaultConfiguration() {
+    $configuration = parent::defaultConfiguration();
+    $configuration['return_file'] = FALSE;
+    $configuration['upload_validators'] = [];
+    return $configuration;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function buildConfigurationForm(array $form, FormStateInterface $form_state) {
+    $form = parent::buildConfigurationForm($form, $form_state);
+
+    $form['return_file'] = [
+      '#type' => 'checkbox',
+      '#title' => $this->t('Return source file entity'),
+      '#default_value' => $this->configuration['return_file'],
+      '#description' => $this->t('If checked, the source file(s) of the media entity will be returned from this widget.'),
+    ];
+    return $form;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  protected function isAllowedType(MediaTypeInterface $media_type): bool {
+    $is_allowed = parent::isAllowedType($media_type);
+
+    if ($is_allowed) {
+      $item_class = $media_type->getSource()
+        ->getSourceFieldDefinition($media_type)
+        ->getItemDefinition()
+        ->getClass();
+
+      $is_allowed = is_a($item_class, FileItem::class, TRUE);
+    }
+    return $is_allowed;
+  }
+
+}
+
+Call to deprecated function file_validate():
+         in drupal:10.2.0 and is removed from drupal:11.0.0. Use the
+           'file.validator' service instead.
+
