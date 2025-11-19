@@ -5,17 +5,52 @@ declare(strict_types=1);
 namespace Drupal\voya_site_resourcecenter\Plugin\EntityBrowser\Widget;
 
 use Drupal\Core\Form\FormStateInterface;
+use Drupal\Core\Plugin\ContainerFactoryPluginInterface;
+use Drupal\file\FileValidatorInterface;
 use Drupal\file\Plugin\Field\FieldType\FileItem;
 use Drupal\image\Plugin\Field\FieldType\ImageItem;
 use Drupal\media\MediaInterface;
 use Drupal\media\MediaTypeInterface;
 use Drupal\voya_site_resourcecenter\Element\AjaxUpload;
 use Drupal\voya_site_resourcecenter\MediaHelper;
+use Symfony\Component\DependencyInjection\ContainerInterface;
 
 /**
  * An Entity Browser widget for creating media entities from uploaded files.
  */
-class FileUpload extends EntityFormProxy {
+class FileUpload extends EntityFormProxy implements ContainerFactoryPluginInterface {
+
+  /**
+   * The file validator service.
+   *
+   * @var \Drupal\file\FileValidatorInterface
+   */
+  protected FileValidatorInterface $fileValidator;
+
+  /**
+   * {@inheritdoc}
+   */
+  public function __construct(
+    array $configuration,
+    $plugin_id,
+    $plugin_definition,
+    FileValidatorInterface $file_validator,
+  ) {
+    parent::__construct($configuration, $plugin_id, $plugin_definition);
+    $this->fileValidator = $file_validator;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public static function create(ContainerInterface $container, array $configuration, $plugin_id, $plugin_definition) {
+    return new static(
+      $configuration,
+      $plugin_id,
+      $plugin_definition,
+      $container->get('file.validator')
+    );
+  }
 
   /**
    * {@inheritdoc}
@@ -35,12 +70,9 @@ class FileUpload extends EntityFormProxy {
       return MediaHelper::getSourceField($entity)->entity;
     };
 
-    if ($this->configuration['return_file']) {
-      return array_map($get_file, $entities);
-    }
-    else {
-      return $entities;
-    }
+    return $this->configuration['return_file']
+      ? array_map($get_file, $entities)
+      : $entities;
   }
 
   /**
@@ -65,17 +97,10 @@ class FileUpload extends EntityFormProxy {
 
   /**
    * Returns all applicable upload validators.
-   *
-   * @return array[]
-   *   A set of argument arrays for each upload validator, keyed by the upload
-   *   validator's function name.
    */
   protected function getUploadValidators(): array {
     $validators = $this->configuration['upload_validators'];
 
-    // If the widget context didn't specify any file extension validation, add
-    // it as the first validator, allowing it to accept only file extensions
-    // associated with existing media bundles.
     if (empty($validators['file_validate_extensions'])) {
       return array_merge([
         'file_validate_extensions' => [
@@ -83,14 +108,12 @@ class FileUpload extends EntityFormProxy {
         ],
       ], $validators);
     }
+
     return $validators;
   }
 
   /**
-   * Returns all file extensions accepted by the allowed media types.
-   *
-   * @return string[]
-   *   The allowed file extensions.
+   * Returns all file extensions accepted by allowed media types.
    */
   protected function getAllowedFileExtensions(): array {
     $extensions = '';
@@ -100,8 +123,8 @@ class FileUpload extends EntityFormProxy {
         ->getSourceFieldDefinition($media_type)
         ->getSetting('file_extensions') . ' ';
     }
-    $extensions = preg_split('/,?\s+/', rtrim($extensions));
 
+    $extensions = preg_split('/,?\s+/', rtrim($extensions));
     return array_unique($extensions);
   }
 
@@ -123,13 +146,7 @@ class FileUpload extends EntityFormProxy {
   }
 
   /**
-   * Validates the file entity associated with a media item.
-   *
-   * @param \Drupal\media\MediaInterface $media
-   *   The media item.
-   *
-   * @return array[]
-   *   Any errors returned by file_validate().
+   * Validates the file entity associated with a media item (Drupal 11).
    */
   protected function validateFile(MediaInterface $media): array {
     $field = $media->getSource()
@@ -140,21 +157,15 @@ class FileUpload extends EntityFormProxy {
     $item = $media->get($field)->first();
 
     $validators = [
-      // It's maybe a bit overzealous to run this validator, but hey...better
-      // safe than screwed over by script kiddies.
       'file_validate_name_length' => [],
     ];
     $validators = array_merge($validators, $item->getUploadValidators());
-    // This function is only called by the custom FileUpload widget, which runs
-    // file_validate_extensions before this function. So there's no need to
-    // validate the extensions again.
+
+    // Already validated elsewhere.
     unset($validators['file_validate_extensions']);
 
-    // If this is an image field, add image validation. Against all sanity,
-    // this is normally done by ImageWidget, not ImageItem, which is why we
-    // need to facilitate this a bit.
+    // Add image validators if this is an image field.
     if ($item instanceof ImageItem) {
-      // Validate that this is, indeed, a supported image.
       $validators['file_validate_is_image'] = [];
 
       $settings = $item->getFieldDefinition()->getSettings();
@@ -165,7 +176,9 @@ class FileUpload extends EntityFormProxy {
         ];
       }
     }
-    return file_validate($item->entity, $validators);
+
+    // ✔ Drupal 11: Use injected service instead of file_validate().
+    return $this->fileValidator->validate($item->entity, $validators);
   }
 
   /**
@@ -179,6 +192,7 @@ class FileUpload extends EntityFormProxy {
       $entity,
       MediaHelper::getSourceField($entity)->entity
     );
+
     $file->setPermanent();
     $file->save();
     $entity->save();
@@ -191,14 +205,6 @@ class FileUpload extends EntityFormProxy {
 
   /**
    * Processes the upload element.
-   *
-   * @param array $element
-   *   The upload element.
-   * @param \Drupal\Core\Form\FormStateInterface $form_state
-   *   The current form state.
-   *
-   * @return array
-   *   The processed upload element.
    */
   public function processUploadElement(array $element, FormStateInterface $form_state): array {
     $element = AjaxUpload::process($element, $form_state);
@@ -231,7 +237,7 @@ class FileUpload extends EntityFormProxy {
       '#type' => 'checkbox',
       '#title' => $this->t('Return source file entity'),
       '#default_value' => $this->configuration['return_file'],
-      '#description' => $this->t('If checked, the source file(s) of the media entity will be returned from this widget.'),
+      '#description' => $this->t('If checked, the source file(s) of the media entity will be returned.'),
     ];
     return $form;
   }
@@ -250,12 +256,8 @@ class FileUpload extends EntityFormProxy {
 
       $is_allowed = is_a($item_class, FileItem::class, TRUE);
     }
+
     return $is_allowed;
   }
 
 }
-
-Call to deprecated function file_validate():
-         in drupal:10.2.0 and is removed from drupal:11.0.0. Use the
-           'file.validator' service instead.
-
