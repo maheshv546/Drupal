@@ -21,7 +21,7 @@ use Symfony\Component\DependencyInjection\ContainerInterface;
 class FileUpload extends EntityFormProxy implements ContainerFactoryPluginInterface {
 
   /**
-   * The file validator service.
+   * File validator service.
    *
    * @var \Drupal\file\FileValidatorInterface
    */
@@ -34,9 +34,20 @@ class FileUpload extends EntityFormProxy implements ContainerFactoryPluginInterf
     array $configuration,
     $plugin_id,
     $plugin_definition,
-    FileValidatorInterface $file_validator,
+    $entity_browser,
+    $view_mode,
+    array $context,
+    FileValidatorInterface $file_validator
   ) {
-    parent::__construct($configuration, $plugin_id, $plugin_definition);
+    parent::__construct(
+      $configuration,
+      $plugin_id,
+      $plugin_definition,
+      $entity_browser,
+      $view_mode,
+      $context
+    );
+
     $this->fileValidator = $file_validator;
   }
 
@@ -44,10 +55,14 @@ class FileUpload extends EntityFormProxy implements ContainerFactoryPluginInterf
    * {@inheritdoc}
    */
   public static function create(ContainerInterface $container, array $configuration, $plugin_id, $plugin_definition) {
+
     return new static(
       $configuration,
       $plugin_id,
       $plugin_definition,
+      $configuration['entity_browser'],
+      $configuration['view_mode'] ?? 'default',
+      $configuration['context'] ?? [],
       $container->get('file.validator')
     );
   }
@@ -113,7 +128,7 @@ class FileUpload extends EntityFormProxy implements ContainerFactoryPluginInterf
   }
 
   /**
-   * Returns all file extensions accepted by allowed media types.
+   * Return allowed file extensions from media types.
    */
   protected function getAllowedFileExtensions(): array {
     $extensions = '';
@@ -146,7 +161,7 @@ class FileUpload extends EntityFormProxy implements ContainerFactoryPluginInterf
   }
 
   /**
-   * Validates the file entity associated with a media item (Drupal 11).
+   * Validates the file entity (Drupal 11: using file.validator service).
    */
   protected function validateFile(MediaInterface $media): array {
     $field = $media->getSource()
@@ -161,10 +176,8 @@ class FileUpload extends EntityFormProxy implements ContainerFactoryPluginInterf
     ];
     $validators = array_merge($validators, $item->getUploadValidators());
 
-    // Already validated elsewhere.
     unset($validators['file_validate_extensions']);
 
-    // Add image validators if this is an image field.
     if ($item instanceof ImageItem) {
       $validators['file_validate_is_image'] = [];
 
@@ -177,7 +190,6 @@ class FileUpload extends EntityFormProxy implements ContainerFactoryPluginInterf
       }
     }
 
-    // ✔ Drupal 11: Use injected service instead of file_validate().
     return $this->fileValidator->validate($item->entity, $validators);
   }
 
@@ -200,17 +212,18 @@ class FileUpload extends EntityFormProxy implements ContainerFactoryPluginInterf
     $selection = [
       $this->configuration['return_file'] ? $file : $entity,
     ];
+
     $this->selectEntities($selection, $form_state);
   }
 
   /**
-   * Processes the upload element.
+   * Processes upload element.
    */
   public function processUploadElement(array $element, FormStateInterface $form_state): array {
     $element = AjaxUpload::process($element, $form_state);
 
     $element['upload_button']['#ajax']['callback'] =
-    $element['remove']['#ajax']['callback'] = [static::class, 'ajax'];
+      $element['remove']['#ajax']['callback'] = [static::class, 'ajax'];
 
     $element['remove']['#value'] = $this->t('Cancel');
 
@@ -239,6 +252,7 @@ class FileUpload extends EntityFormProxy implements ContainerFactoryPluginInterf
       '#default_value' => $this->configuration['return_file'],
       '#description' => $this->t('If checked, the source file(s) of the media entity will be returned.'),
     ];
+
     return $form;
   }
 
@@ -254,22 +268,10 @@ class FileUpload extends EntityFormProxy implements ContainerFactoryPluginInterf
         ->getItemDefinition()
         ->getClass();
 
-      $is_allowed = is_a($item_class, FileItem::class, TRUE);
+      return is_a($item_class, FileItem::class, TRUE);
     }
 
-    return $is_allowed;
+    return FALSE;
   }
 
 }
-
-
-  28     Property Drupal\voya_site_resourcecenter\Plugin\EntityBrowser\Widget\FileUpload::$fileValidator has unknown class Drupal\file\FileValidatorInterface as its type.
-         💡 Learn more at https://phpstan.org/user-guide/discovering-symbols
-
-  28     Property Drupal\voya_site_resourcecenter\Plugin\EntityBrowser\Widget\FileUpload::$fileValidator has unknown class Drupal\file\FileValidatorInterface as its type.
-         💡 Learn more at https://phpstan.org/user-guide/discovering-symbols
-
-  37     Parameter $file_validator of method Drupal\voya_site_resourcecenter\Plugin\EntityBrowser\Widget\FileUpload::__construct() has invalid type Drupal\file\FileValidatorInterface.
-  39     Method Drupal\entity_browser\WidgetBase::__construct() invoked with 3 parameters, 6 required.
-
-  181    Call to method validate() on an unknown class Drupal\file\FileValidatorInterface.
