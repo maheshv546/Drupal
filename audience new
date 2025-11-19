@@ -261,3 +261,15 @@ class FileUpload extends EntityFormProxy implements ContainerFactoryPluginInterf
   }
 
 }
+
+
+  28     Property Drupal\voya_site_resourcecenter\Plugin\EntityBrowser\Widget\FileUpload::$fileValidator has unknown class Drupal\file\FileValidatorInterface as its type.
+         💡 Learn more at https://phpstan.org/user-guide/discovering-symbols
+
+  28     Property Drupal\voya_site_resourcecenter\Plugin\EntityBrowser\Widget\FileUpload::$fileValidator has unknown class Drupal\file\FileValidatorInterface as its type.
+         💡 Learn more at https://phpstan.org/user-guide/discovering-symbols
+
+  37     Parameter $file_validator of method Drupal\voya_site_resourcecenter\Plugin\EntityBrowser\Widget\FileUpload::__construct() has invalid type Drupal\file\FileValidatorInterface.
+  39     Method Drupal\entity_browser\WidgetBase::__construct() invoked with 3 parameters, 6 required.
+
+  181    Call to method validate() on an unknown class Drupal\file\FileValidatorInterface.
